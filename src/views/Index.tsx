@@ -1,5 +1,5 @@
-import { Navigate } from 'react-router-dom';
+import { redirect } from 'next/navigation';
 
-const Index = () => <Navigate to="/today" replace />;
+const Index = () => redirect('/today');
 
 export default Index;
