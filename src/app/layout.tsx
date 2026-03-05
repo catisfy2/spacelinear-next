@@ -1,0 +1,60 @@
+import "./global.css";
+import type { Metadata, Viewport } from "next";
+import { Providers } from "./providers";
+
+export const metadata: Metadata = {
+  title: "SpaceLinear",
+  description:
+    "Master any hard skills, topics through repetitive study and revision using SpaceLinear",
+  authors: [{ name: "Lovable" }],
+  openGraph: {
+    type: "website",
+    title: "SpaceLinear",
+    description:
+      "Master any hard skills, topics through repetitive study and revision using SpaceLinear",
+    images: [
+      {
+        url: "https://storage.googleapis.com/gpt-engineer-file-uploads/attachments/og-images/c8f5142f-384f-4d94-8a28-def13f6b705b",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    site: "@Lovable",
+    title: "SpaceLinear",
+    description:
+      "Master any hard skills, topics through repetitive study and revision using SpaceLinear",
+  },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+};
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                var theme = localStorage.getItem('sl-theme');
+                if (!theme) theme = 'dark';
+                document.documentElement.classList.add(theme);
+              })();
+            `,
+          }}
+        />
+      </head>
+      <body>
+        <Providers>{children}</Providers>
+      </body>
+    </html>
+  );
+}

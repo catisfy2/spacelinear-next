@@ -1,0 +1,313 @@
+import { create } from 'zustand';
+import type { Topic, Subject, ReviewHistoryEntry, Difficulty, Resource } from '@/lib/types';
+import { processReview, INITIAL_EASE } from '@/lib/algorithm';
+import { supabase } from '@/integrations/supabase/client';
+
+interface AppState {
+  subjects: Subject[];
+  topics: Topic[];
+  reviewHistory: ReviewHistoryEntry[];
+  resources: Resource[];
+  sidebarCollapsed: boolean;
+  selectedSidebarTopicId: string | null;
+  loading: boolean;
+
+  // Actions
+  toggleSidebar: () => void;
+  setSelectedSidebarTopicId: (id: string | null) => void;
+  fetchAll: (userId: string) => Promise<void>;
+  clear: () => void;
+  addSubject: (subject: Omit<Subject, 'id' | 'createdAt'>, userId: string) => Promise<Subject>;
+  addTopic: (topic: Omit<Topic, 'id' | 'createdAt' | 'state' | 'currentDifficulty' | 'nextReviewDate' | 'currentIntervalDays' | 'easeFactor' | 'totalReviews' | 'correctReviews' | 'streak' | 'firstReviewedAt' | 'lastReviewedAt'>, userId: string) => Promise<Topic>;
+  submitReview: (topicId: string, difficulty: Difficulty, userId: string) => Promise<void>;
+  getDueTopics: () => Topic[];
+  getSubjectDueCount: (subjectId: string) => number;
+  deleteTopic: (topicId: string) => Promise<void>;
+  deleteSubject: (subjectId: string) => Promise<void>;
+  updateTopic: (topicId: string, patch: Partial<Topic>) => Promise<void>;
+  updateSubject: (subjectId: string, patch: Partial<Subject>) => Promise<void>;
+  fetchResources: (entityId: string, userId: string) => Promise<void>;
+  addResource: (resource: Omit<Resource, 'id' | 'createdAt'>, userId: string) => Promise<Resource>;
+  deleteResource: (resourceId: string) => Promise<void>;
+}
+
+function mapResourceRow(row: any): Resource {
+  return {
+    id: row.id,
+    entityId: row.entity_id,
+    entityType: row.entity_type as Resource['entityType'],
+    type: row.type as Resource['type'],
+    title: row.title,
+    url: row.url ?? undefined,
+    content: row.content ?? undefined,
+    createdAt: row.created_at,
+  };
+}
+
+// DB row -> app type mappers
+function mapSubjectRow(row: any): Subject {
+  return {
+    id: row.id,
+    name: row.name,
+    description: row.description ?? undefined,
+    color: row.color ?? '#6366f1',
+    icon: row.icon ?? '📘',
+    createdAt: row.created_at,
+  };
+}
+
+function mapTopicRow(row: any): Topic {
+  return {
+    id: row.id,
+    subjectId: row.subject_id,
+    title: row.title,
+    description: row.description ?? undefined,
+    notes: row.notes ?? undefined,
+    tags: row.tags ?? [],
+    state: row.state as Topic['state'],
+    currentDifficulty: row.current_difficulty ?? undefined,
+    nextReviewDate: row.next_review_date,
+    currentIntervalDays: row.current_interval_days,
+    easeFactor: row.ease_factor,
+    totalReviews: row.total_reviews,
+    correctReviews: row.correct_reviews,
+    streak: row.streak,
+    firstReviewedAt: row.first_reviewed_at ?? undefined,
+    lastReviewedAt: row.last_reviewed_at ?? undefined,
+    createdAt: row.created_at,
+  };
+}
+
+function mapHistoryRow(row: any): ReviewHistoryEntry {
+  return {
+    id: row.id,
+    topicId: row.topic_id,
+    reviewedAt: row.reviewed_at,
+    difficultyBefore: row.difficulty_before ?? undefined,
+    difficultySelected: row.difficulty_selected as Difficulty,
+    intervalBeforeDays: row.interval_before_days,
+    intervalAfterDays: row.interval_after_days,
+    easeFactor: row.ease_factor,
+    reviewNumber: row.review_number,
+  };
+}
+
+export const useStore = create<AppState>()((set, get) => ({
+  subjects: [],
+  topics: [],
+  reviewHistory: [],
+  resources: [],
+  sidebarCollapsed: false,
+  selectedSidebarTopicId: null,
+  loading: true,
+
+  toggleSidebar: () => set(s => ({ sidebarCollapsed: !s.sidebarCollapsed })),
+  setSelectedSidebarTopicId: (id) => set({ selectedSidebarTopicId: id }),
+
+  fetchAll: async (userId: string) => {
+    set({ loading: true });
+    const [subjectsRes, topicsRes, historyRes] = await Promise.all([
+      supabase.from('subjects').select('*').eq('user_id', userId),
+      supabase.from('topics').select('*').eq('user_id', userId),
+      supabase.from('review_history').select('*').eq('user_id', userId),
+    ]);
+    set({
+      subjects: (subjectsRes.data ?? []).map(mapSubjectRow),
+      topics: (topicsRes.data ?? []).map(mapTopicRow),
+      reviewHistory: (historyRes.data ?? []).map(mapHistoryRow),
+      loading: false,
+    });
+  },
+
+  clear: () => set({ subjects: [], topics: [], reviewHistory: [], resources: [], loading: false }),
+
+  addSubject: async (data, userId) => {
+    const { data: rows, error } = await supabase.from('subjects').insert({
+      name: data.name,
+      description: data.description ?? null,
+      color: data.color,
+      icon: data.icon,
+      user_id: userId,
+    }).select().single();
+    if (error || !rows) throw error;
+    const subject = mapSubjectRow(rows);
+    set(s => ({ subjects: [...s.subjects, subject] }));
+    return subject;
+  },
+
+  addTopic: async (data, userId) => {
+    const { data: row, error } = await supabase.from('topics').insert({
+      title: data.title,
+      description: data.description ?? null,
+      notes: data.notes ?? null,
+      subject_id: data.subjectId || null,
+      tags: data.tags,
+      state: 'new',
+      next_review_date: new Date().toISOString(),
+      current_interval_days: 0,
+      ease_factor: INITIAL_EASE,
+      total_reviews: 0,
+      correct_reviews: 0,
+      streak: 0,
+      user_id: userId,
+    }).select().single();
+    if (error || !row) throw error;
+    const topic = mapTopicRow(row);
+    set(s => ({ topics: [...s.topics, topic] }));
+    return topic;
+  },
+
+  submitReview: async (topicId, difficulty, userId) => {
+    const topic = get().topics.find(t => t.id === topicId);
+    if (!topic) return;
+    const { updatedTopic, historyEntry } = processReview(topic, difficulty);
+
+    // Update topic in DB
+    await supabase.from('topics').update({
+      state: updatedTopic.state,
+      current_difficulty: updatedTopic.currentDifficulty ?? null,
+      next_review_date: updatedTopic.nextReviewDate,
+      current_interval_days: updatedTopic.currentIntervalDays,
+      ease_factor: updatedTopic.easeFactor,
+      total_reviews: updatedTopic.totalReviews,
+      correct_reviews: updatedTopic.correctReviews,
+      streak: updatedTopic.streak,
+      first_reviewed_at: updatedTopic.firstReviewedAt ?? null,
+      last_reviewed_at: updatedTopic.lastReviewedAt ?? null,
+    }).eq('id', topicId);
+
+    // Insert history
+    await supabase.from('review_history').insert({
+      topic_id: historyEntry.topicId,
+      reviewed_at: historyEntry.reviewedAt,
+      difficulty_before: historyEntry.difficultyBefore ?? null,
+      difficulty_selected: historyEntry.difficultySelected,
+      interval_before_days: historyEntry.intervalBeforeDays,
+      interval_after_days: historyEntry.intervalAfterDays,
+      ease_factor: historyEntry.easeFactor,
+      review_number: historyEntry.reviewNumber,
+      user_id: userId,
+    });
+
+    set(s => ({
+      topics: s.topics.map(t => t.id === topicId ? updatedTopic : t),
+      reviewHistory: [...s.reviewHistory, historyEntry],
+    }));
+  },
+
+  getDueTopics: () => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    return get().topics
+      .filter(t => {
+        const d = new Date(t.nextReviewDate);
+        d.setHours(0, 0, 0, 0);
+        return d < tomorrow;
+      })
+      .sort((a, b) => {
+        const stateOrder: Record<string, number> = { relearning: 0, learning: 1, new: 2, reviewing: 3 };
+        return (stateOrder[a.state] ?? 3) - (stateOrder[b.state] ?? 3);
+      });
+  },
+
+  getSubjectDueCount: (subjectId) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    return get().topics.filter(t => {
+      if (t.subjectId !== subjectId) return false;
+      const d = new Date(t.nextReviewDate);
+      d.setHours(0, 0, 0, 0);
+      return d < tomorrow;
+    }).length;
+  },
+
+  deleteTopic: async (topicId) => {
+    await supabase.from('review_history').delete().eq('topic_id', topicId);
+    await supabase.from('topics').delete().eq('id', topicId);
+    set(s => ({
+      topics: s.topics.filter(t => t.id !== topicId),
+      reviewHistory: s.reviewHistory.filter(h => h.topicId !== topicId),
+    }));
+  },
+
+  deleteSubject: async (subjectId) => {
+    await supabase.from('topics').delete().eq('subject_id', subjectId);
+    await supabase.from('subjects').delete().eq('id', subjectId);
+    set(s => ({
+      subjects: s.subjects.filter(s2 => s2.id !== subjectId),
+      topics: s.topics.filter(t => t.subjectId !== subjectId),
+    }));
+  },
+
+  updateTopic: async (topicId, patch) => {
+    const dbPatch: Record<string, any> = {};
+    if (patch.title !== undefined) dbPatch.title = patch.title;
+    if (patch.description !== undefined) dbPatch.description = patch.description;
+    if (patch.notes !== undefined) dbPatch.notes = patch.notes;
+    if (patch.tags !== undefined) dbPatch.tags = patch.tags;
+    if (patch.subjectId !== undefined) dbPatch.subject_id = patch.subjectId;
+    if (Object.keys(dbPatch).length > 0) {
+      await supabase.from('topics').update(dbPatch).eq('id', topicId);
+    }
+    set(s => ({
+      topics: s.topics.map(t => t.id === topicId ? { ...t, ...patch } : t),
+    }));
+  },
+
+  updateSubject: async (subjectId, patch) => {
+    const dbPatch: Record<string, any> = {};
+    if (patch.name !== undefined) dbPatch.name = patch.name;
+    if (patch.description !== undefined) dbPatch.description = patch.description;
+    if (patch.icon !== undefined) dbPatch.icon = patch.icon;
+    if (patch.color !== undefined) dbPatch.color = patch.color;
+    if (Object.keys(dbPatch).length > 0) {
+      await supabase.from('subjects').update(dbPatch).eq('id', subjectId);
+    }
+    set(s => ({
+      subjects: s.subjects.map(sub => sub.id === subjectId ? { ...sub, ...patch } : sub),
+    }));
+  },
+
+  fetchResources: async (entityId, userId) => {
+    const { data } = await supabase
+      .from('resources')
+      .select('*')
+      .eq('entity_id', entityId)
+      .eq('user_id', userId);
+    const fetched = (data ?? []).map(mapResourceRow);
+    set(s => ({
+      resources: [
+        ...s.resources.filter(r => r.entityId !== entityId),
+        ...fetched,
+      ],
+    }));
+  },
+
+  addResource: async (resource, userId) => {
+    const { data: row, error } = await supabase.from('resources').insert({
+      entity_id: resource.entityId,
+      entity_type: resource.entityType,
+      type: resource.type,
+      title: resource.title,
+      url: resource.url ?? null,
+      content: resource.content ?? null,
+      user_id: userId,
+    }).select().single();
+    if (error || !row) throw error;
+    const mapped = mapResourceRow(row);
+    set(s => ({ resources: [...s.resources, mapped] }));
+    return mapped;
+  },
+
+  deleteResource: async (resourceId) => {
+    await supabase.from('resources').delete().eq('id', resourceId);
+    set(s => ({ resources: s.resources.filter(r => r.id !== resourceId) }));
+  },
+}));
+
+// Clean up old localStorage data
+try { localStorage.removeItem('spacelinear-store'); } catch {}
