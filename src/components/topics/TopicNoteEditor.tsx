@@ -155,13 +155,20 @@ export function TopicNoteEditor({ topicId }: TopicNoteEditorProps) {
           if (debounceRef.current) clearTimeout(debounceRef.current);
 
           debounceRef.current = setTimeout(async () => {
+            if (disposed) return;
             try {
               const saved = await editorRef.current?.save();
               if (!saved) return;
               await updateTopicRef.current(topicId, { notes: JSON.stringify(saved) });
+              if (disposed) return;
               setSaveStatus('saved');
-              setTimeout(() => setSaveStatus('idle'), 2000);
+              if (debounceRef.current) clearTimeout(debounceRef.current);
+              debounceRef.current = setTimeout(() => {
+                if (disposed) return;
+                setSaveStatus('idle');
+              }, 2000);
             } catch {
+              if (disposed) return;
               setSaveStatus('idle');
             }
           }, 800);
