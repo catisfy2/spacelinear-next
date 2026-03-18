@@ -157,7 +157,7 @@ export function TopicNoteEditor({ topicId }: TopicNoteEditorProps) {
   if (!topic) return null;
 
   return (
-    <div className="relative text-foreground">
+    <div className="relative text-foreground editorjs-note">
       {/* Save indicator */}
       <div className="absolute top-3 right-4 z-10 flex items-center gap-1.5 text-xs text-muted-foreground pointer-events-none">
         {saveStatus === 'saving' && (

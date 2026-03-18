@@ -345,6 +345,45 @@
   border-bottom: 1px solid hsl(var(--border));
 }
 
+/* ─── Editor.js heading styles ───────────────────────────────────────────── */
+.editorjs-note .ce-block__content,
+.editorjs-note .ce-toolbar__content {
+  max-width: none;
+}
+
+.editorjs-note .ce-header,
+.editorjs-note h1.ce-header,
+.editorjs-note h2.ce-header,
+.editorjs-note h3.ce-header,
+.editorjs-note h4.ce-header {
+  color: hsl(var(--foreground));
+  line-height: 1.25;
+}
+
+.editorjs-note .ce-header[data-level='1'],
+.editorjs-note h1.ce-header {
+  font-size: 2rem;
+  font-weight: 700;
+}
+
+.editorjs-note .ce-header[data-level='2'],
+.editorjs-note h2.ce-header {
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.editorjs-note .ce-header[data-level='3'],
+.editorjs-note h3.ce-header {
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.editorjs-note .ce-header[data-level='4'],
+.editorjs-note h4.ce-header {
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+
 .latex-editor-label {
   font-size: 11px;
   font-weight: 600;
