@@ -13,19 +13,58 @@ const DEFAULT_EDITOR_DATA: OutputData = {
   ],
 };
 
+function convertLegacyNotesToOutputData(parsed: unknown): OutputData {
+  // Best-effort migration of legacy/unknown note formats into a simple paragraph.
+  let text = '';
+
+  if (typeof parsed === 'string') {
+    text = parsed;
+  } else if (parsed && typeof parsed === 'object') {
+    const maybeText =
+      (parsed as any).text ??
+      (parsed as any).content ??
+      (parsed as any).body;
+
+    if (typeof maybeText === 'string') {
+      text = maybeText;
+    } else {
+      // Fallback: preserve the raw JSON in a readable form.
+      try {
+        text = JSON.stringify(parsed);
+      } catch {
+        text = '';
+      }
+    }
+  }
+
+  if (!text) {
+    return DEFAULT_EDITOR_DATA;
+  }
+
+  return {
+    blocks: [
+      {
+        type: 'paragraph',
+        data: { text },
+      },
+    ],
+  };
+}
+
 function parseNotes(notes?: string): OutputData {
   if (!notes) return DEFAULT_EDITOR_DATA;
 
   try {
     const parsed = JSON.parse(notes);
-    if (parsed && typeof parsed === 'object' && Array.isArray(parsed.blocks)) {
+    if (parsed && typeof parsed === 'object' && Array.isArray((parsed as any).blocks)) {
       return parsed as OutputData;
     }
+
+    // Fallback: attempt to migrate legacy/unknown formats instead of dropping data.
+    return convertLegacyNotesToOutputData(parsed);
   } catch {
     return DEFAULT_EDITOR_DATA;
   }
-
-  return DEFAULT_EDITOR_DATA;
 }
 
 type SaveStatus = 'idle' | 'saving' | 'saved';
