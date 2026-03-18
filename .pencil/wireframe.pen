@@ -1,0 +1,37 @@
+{
+  "version": "2.8",
+  "children": [
+    {
+      "type": "frame",
+      "id": "lI0kY",
+      "x": 112,
+      "y": -140,
+      "name": "card",
+      "clip": true,
+      "width": 378,
+      "height": 655,
+      "stroke": {
+        "align": "inside",
+        "thickness": 1,
+        "fill": "#ffffffff"
+      },
+      "padding": [
+        10,
+        0
+      ],
+      "justifyContent": "center",
+      "children": [
+        {
+          "type": "frame",
+          "id": "1hU5p",
+          "name": "Frame 1",
+          "clip": true,
+          "width": 308,
+          "height": 278,
+          "fill": "#FFFFFF",
+          "layout": "none"
+        }
+      ]
+    }
+  ]
+}
