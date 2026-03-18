@@ -11,7 +11,15 @@ import Paragraph from '@yoopta/paragraph';
 import Blockquote from '@yoopta/blockquote';
 import Headings from '@yoopta/headings';
 import { BulletedList, NumberedList, TodoList } from '@yoopta/lists';
+import Accordion from '@yoopta/accordion';
+import Divider from '@yoopta/divider';
+import Callout from '@yoopta/callout';
+import Link from '@yoopta/link';
+import TableOfContents from '@yoopta/table-of-contents';
+import Table from '@yoopta/table';
+import Image from '@yoopta/image';
 import Code from '@yoopta/code';
+import Embed from '@yoopta/embed';
 import Toolbar, { DefaultToolbarRender } from '@yoopta/toolbar';
 import ActionMenuList, { DefaultActionMenuRender } from '@yoopta/action-menu-list';
 import LatexPlugin from './plugins/LatexPlugin';
@@ -28,7 +36,15 @@ const PLUGINS = [
   BulletedList,
   NumberedList,
   TodoList,
+  Accordion, // Toggle Heading + Toggle List behavior
+  Divider,
+  Callout,
+  Link, // "Link to page" / inline links
+  TableOfContents,
+  Table, // Simple table block
+  Image,
   Code,
+  Embed,
   LatexPlugin,
 ] as const;
 
