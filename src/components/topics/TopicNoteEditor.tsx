@@ -1,78 +1,31 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import YooptaEditor, {
-  createYooptaEditor,
-  buildBlockData,
-  buildBlockElement,
-  generateId,
-  type YooptaContentValue,
-  type YooptaOnChangeOptions,
-} from '@yoopta/editor';
-import Paragraph from '@yoopta/paragraph';
-import Blockquote from '@yoopta/blockquote';
-import Headings from '@yoopta/headings';
-import { BulletedList, NumberedList, TodoList } from '@yoopta/lists';
-import Code from '@yoopta/code';
-import Toolbar, { DefaultToolbarRender } from '@yoopta/toolbar';
-import ActionMenuList, { DefaultActionMenuRender } from '@yoopta/action-menu-list';
-import LatexPlugin from './plugins/LatexPlugin';
-import { Bold, Italic, Underline, Strike, CodeMark, Highlight } from '@yoopta/marks';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import type EditorJS from '@editorjs/editorjs';
 import { useStore } from '@/store/useStore';
 import { Check, Loader2 } from 'lucide-react';
+import type { OutputData } from '@editorjs/editorjs';
 
-const PLUGINS = [
-  Paragraph,
-  Blockquote,
-  Headings.HeadingOne,
-  Headings.HeadingTwo,
-  Headings.HeadingThree,
-  BulletedList,
-  NumberedList,
-  TodoList,
-  Code,
-  LatexPlugin,
-] as const;
-
-const TOOLS = {
-  Toolbar: {
-    tool: Toolbar,
-    render: DefaultToolbarRender,
-  },
-  ActionMenu: {
-    tool: ActionMenuList,
-    render: DefaultActionMenuRender,
-  },
+const DEFAULT_EDITOR_DATA: OutputData = {
+  blocks: [
+    {
+      type: 'paragraph',
+      data: { text: '' },
+    },
+  ],
 };
 
-const MARKS = [Bold, Italic, Underline, Strike, CodeMark, Highlight];
+function parseNotes(notes?: string): OutputData {
+  if (!notes) return DEFAULT_EDITOR_DATA;
 
-function getDefaultValue(): YooptaContentValue {
-  const id = generateId();
-  return {
-    [id]: buildBlockData({
-      id,
-      type: 'Paragraph',
-      value: [buildBlockElement({ type: 'paragraph', children: [{ text: '' }] })],
-      meta: { order: 0, depth: 0 },
-    }),
-  } as YooptaContentValue;
-}
-
-function parseNotes(notes?: string): YooptaContentValue {
-  if (!notes) return getDefaultValue();
   try {
     const parsed = JSON.parse(notes);
-    if (
-      typeof parsed === 'object' &&
-      parsed !== null &&
-      !Array.isArray(parsed) &&
-      Object.keys(parsed).length > 0
-    ) {
-      return parsed as YooptaContentValue;
+    if (parsed && typeof parsed === 'object' && Array.isArray(parsed.blocks)) {
+      return parsed as OutputData;
     }
   } catch {
-    // not JSON — return default
+    return DEFAULT_EDITOR_DATA;
   }
-  return getDefaultValue();
+
+  return DEFAULT_EDITOR_DATA;
 }
 
 type SaveStatus = 'idle' | 'saving' | 'saved';
@@ -85,38 +38,106 @@ export function TopicNoteEditor({ topicId }: TopicNoteEditorProps) {
   const { topics, updateTopic } = useStore();
   const topic = topics.find(t => t.id === topicId);
 
-  const editor = useMemo(() => createYooptaEditor(), [topicId]);
+  const holderId = useMemo(
+    () => `topic-note-editor-${topicId.replace(/[^a-zA-Z0-9-_]/g, '-')}`,
+    [topicId],
+  );
+  const editorRef = useRef<EditorJS | null>(null);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const initialValue = useMemo(() => parseNotes(topic?.notes), [topicId]);
+  const initialValue = useMemo(() => parseNotes(topic?.notes), [topic?.notes]);
 
   useEffect(() => {
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
+      editorRef.current?.destroy();
+      editorRef.current = null;
     };
   }, []);
 
-  const handleChange = useCallback(
-    (value: YooptaContentValue, _options: YooptaOnChangeOptions) => {
-      setSaveStatus('saving');
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-      debounceRef.current = setTimeout(async () => {
-        try {
-          await updateTopic(topicId, { notes: JSON.stringify(value) });
-          setSaveStatus('saved');
-          setTimeout(() => setSaveStatus('idle'), 2000);
-        } catch {
-          setSaveStatus('idle');
-        }
-      }, 800);
-    },
-    [topicId, updateTopic],
-  );
+  useEffect(() => {
+    let disposed = false;
+
+    const initEditor = async () => {
+      const [{ default: EditorJs }, { default: Header }, { default: List }, { default: Quote }, { default: Delimiter }, { default: Marker }, { default: InlineCode }, { default: CodeTool }, { default: Table }, { default: Warning }, { default: Checklist }, { default: Embed }, { default: LinkTool }] = await Promise.all([
+        import('@editorjs/editorjs'),
+        import('@editorjs/header'),
+        import('@editorjs/list'),
+        import('@editorjs/quote'),
+        import('@editorjs/delimiter'),
+        import('@editorjs/marker'),
+        import('@editorjs/inline-code'),
+        import('@editorjs/code'),
+        import('@editorjs/table'),
+        import('@editorjs/warning'),
+        import('@editorjs/checklist'),
+        import('@editorjs/embed'),
+        import('@editorjs/link'),
+      ]);
+
+      if (disposed) return;
+
+      editorRef.current?.destroy();
+
+      editorRef.current = new EditorJs({
+        holder: holderId,
+        autofocus: true,
+        placeholder: 'Start writing… (type / for commands)',
+        data: initialValue,
+        tools: {
+          paragraph: { inlineToolbar: true },
+          header: Header,
+          list: List,
+          quote: Quote,
+          delimiter: Delimiter,
+          marker: Marker,
+          inlineCode: InlineCode,
+          code: CodeTool,
+          table: Table,
+          warning: Warning,
+          checklist: Checklist,
+          embed: Embed,
+          linkTool: {
+            class: LinkTool,
+            config: {
+              endpoint: '/api/editorjs/link',
+            },
+          },
+        },
+        onChange: async () => {
+          if (!editorRef.current) return;
+
+          setSaveStatus('saving');
+          if (debounceRef.current) clearTimeout(debounceRef.current);
+
+          debounceRef.current = setTimeout(async () => {
+            try {
+              const saved = await editorRef.current?.save();
+              if (!saved) return;
+              await updateTopic(topicId, { notes: JSON.stringify(saved) });
+              setSaveStatus('saved');
+              setTimeout(() => setSaveStatus('idle'), 2000);
+            } catch {
+              setSaveStatus('idle');
+            }
+          }, 800);
+        },
+      });
+    };
+
+    void initEditor();
+
+    return () => {
+      disposed = true;
+      editorRef.current?.destroy();
+      editorRef.current = null;
+    };
+  }, [holderId, initialValue, topicId, updateTopic]);
 
   if (!topic) return null;
 
   return (
-    <div className="relative yoopta-editor text-foreground">
+    <div className="relative text-foreground">
       {/* Save indicator */}
       <div className="absolute top-3 right-4 z-10 flex items-center gap-1.5 text-xs text-muted-foreground pointer-events-none">
         {saveStatus === 'saving' && (
@@ -133,22 +154,9 @@ export function TopicNoteEditor({ topicId }: TopicNoteEditorProps) {
         )}
       </div>
 
-      <YooptaEditor
-        editor={editor}
-        plugins={PLUGINS}
-        marks={MARKS}
-        tools={TOOLS}
-        value={initialValue}
-        onChange={handleChange}
-        placeholder="Start writing… (type / for commands)"
-        width="100%"
-        autoFocus
-        style={{
-          padding: '10px 42px 60px',
-          fontFamily: 'inherit',
-          minHeight: '60vh',
-          color: 'hsl(var(--foreground))',
-        }}
+      <div
+        id={holderId}
+        className="w-full min-h-[60vh] px-[42px] pt-[10px] pb-[60px]"
       />
     </div>
   );
