@@ -141,12 +141,6 @@ export function TopicNoteEditor({ topicId }: TopicNoteEditorProps) {
           warning: Warning,
           checklist: Checklist,
           embed: Embed,
-          linkTool: {
-            class: LinkTool,
-            config: {
-              endpoint: '/api/editorjs/link',
-            },
-          },
         },
         onChange: async () => {
           if (!editorRef.current) return;
