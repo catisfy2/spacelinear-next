@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from 'react';
-import { motion } from 'framer-motion';
 import { useStore } from '@/store/useStore';
 import { useAuth } from '@/hooks/useAuth';
 import { DEFAULT_SUBJECT_COLORS, DEFAULT_SUBJECT_ICONS } from '@/lib/constants';
@@ -30,21 +29,13 @@ export function CreateSubjectModal({ onClose }: { onClose: () => void }) {
   };
 
   return (
-    <motion.div
+    <div
       className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center"
       onClick={onClose}
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 0.15 }}
     >
-      <motion.div
+      <div
         className="bg-card border border-border rounded-xl p-6 w-full max-w-md shadow-2xl"
         onClick={e => e.stopPropagation()}
-        initial={{ opacity: 0, scale: 0.95, y: 12 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.95, y: 8 }}
-        transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
       >
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-lg font-semibold text-foreground">New Subject</h2>
@@ -97,8 +88,8 @@ export function CreateSubjectModal({ onClose }: { onClose: () => void }) {
                   type="button"
                   onClick={() => setColor(c)}
                   className={cn(
-                    'w-6 h-6 rounded-full transition-transform',
-                    color === c ? 'ring-2 ring-ring ring-offset-2 ring-offset-card scale-110' : 'hover:scale-105'
+                    'w-6 h-6 rounded-full',
+                    color === c ? 'ring-2 ring-ring ring-offset-2 ring-offset-card' : ''
                   )}
                   style={{ backgroundColor: c }}
                 />
@@ -114,7 +105,7 @@ export function CreateSubjectModal({ onClose }: { onClose: () => void }) {
             </button>
           </div>
         </form>
-      </motion.div>
-    </motion.div>
+      </div>
+    </div>
   );
 }

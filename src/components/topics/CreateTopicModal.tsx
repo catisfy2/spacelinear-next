@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from 'react';
-import { motion } from 'framer-motion';
 import { useStore } from '@/store/useStore';
 import { useAuth } from '@/hooks/useAuth';
 import { X } from 'lucide-react';
@@ -34,21 +33,13 @@ export function CreateTopicModal({ onClose }: { onClose: () => void }) {
   };
 
   return (
-    <motion.div
+    <div
       className="fixed inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center"
       onClick={onClose}
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 0.15 }}
     >
-      <motion.div
+      <div
         className="bg-card border border-border rounded-xl p-6 w-full max-w-md shadow-2xl"
         onClick={e => e.stopPropagation()}
-        initial={{ opacity: 0, scale: 0.95, y: 12 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.95, y: 8 }}
-        transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
       >
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-lg font-semibold text-foreground">New Topic</h2>
@@ -107,7 +98,7 @@ export function CreateTopicModal({ onClose }: { onClose: () => void }) {
               </button>
             </div>
         </form>
-      </motion.div>
-    </motion.div>
+      </div>
+    </div>
   );
 }

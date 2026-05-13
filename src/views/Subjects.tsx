@@ -2,22 +2,14 @@
 
 import { useState, useMemo } from 'react';
 import Link from 'next/link';
-import { AnimatePresence, motion } from 'framer-motion';
 import { useStore } from '@/store/useStore';
-import { Plus, BookOpen } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { CreateSubjectModal } from '@/components/subjects/CreateSubjectModal';
 import { Progress } from '@/components/ui/progress';
-import { isToday, startOfDay } from 'date-fns';
-
-const containerVariants = {
-  hidden: {},
-  show: { transition: { staggerChildren: 0.05 } },
-};
-
-const itemVariants = {
-  hidden: { opacity: 0, y: 12 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.2, ease: 'easeOut' as const } },
-};
+import { startOfDay } from 'date-fns';
+import { PageShell } from '@/components/app/PageShell';
+import { PageHeader } from '@/components/app/PageHeader';
+import { Button } from '@/components/ui/button';
 
 export function SubjectsPage() {
   const { subjects, topics } = useStore();
@@ -40,48 +32,35 @@ export function SubjectsPage() {
   }, [subjects, topics]);
 
   return (
-    <div className="flex-1 flex flex-col min-w-0">
-      {/* Header */}
-      <div className="px-6 pt-6 pb-4">
-        <div className="flex items-center justify-between">
-          <h1 className="text-lg font-semibold text-foreground">Subjects</h1>
-          <button
-            onClick={() => setShowCreate(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
-          >
-            <Plus className="w-3.5 h-3.5" /> New Subject
-          </button>
-        </div>
-      </div>
+    <PageShell>
+      <PageHeader
+        title="Subjects"
+        description="Organize topics into subjects and track progress."
+        actions={
+          <Button size="sm" className="rounded-lg" onClick={() => setShowCreate(true)}>
+            <Plus className="mr-1.5 h-3.5 w-3.5" /> New Subject
+          </Button>
+        }
+      />
 
-      {/* Content */}
-      <div className="flex-1 overflow-y-auto px-6 pb-6">
-        {subjects.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full gap-4 text-center px-4">
-            <div className="text-4xl">📚</div>
-            <h2 className="text-lg font-medium text-foreground">No subjects yet</h2>
-            <p className="text-sm text-muted-foreground max-w-sm">
-              Create your first subject to start organizing your topics.
-            </p>
-            <button
-              onClick={() => setShowCreate(true)}
-              className="flex items-center gap-1.5 px-4 py-2 text-sm rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
-            >
-              <Plus className="w-4 h-4" /> Create Subject
-            </button>
-          </div>
-        ) : (
-          <motion.div
-            className="grid gap-3"
-            variants={containerVariants}
-            initial="hidden"
-            animate="show"
-          >
-            {subjectStats.map(({ subject, totalCount, dueCount, mastery }) => (
-              <motion.div key={subject.id} variants={itemVariants}>
+      {subjects.length === 0 ? (
+        <div className="flex min-h-[40vh] flex-col items-center justify-center gap-4 px-4 text-center">
+          <div className="text-4xl">📚</div>
+          <h2 className="text-lg font-medium text-foreground">No subjects yet</h2>
+          <p className="max-w-sm text-sm text-muted-foreground">
+            Create your first subject to start organizing your topics.
+          </p>
+          <Button onClick={() => setShowCreate(true)}>
+            <Plus className="mr-2 h-4 w-4" /> Create Subject
+          </Button>
+        </div>
+      ) : (
+        <div className="grid gap-3">
+          {subjectStats.map(({ subject, totalCount, dueCount, mastery }) => (
+            <div key={subject.id}>
               <Link
                 href={`/subjects/${subject.id}`}
-                className="flex items-center gap-4 p-4 rounded-lg border border-border bg-card hover:bg-accent/50 transition-colors"
+                className="flex items-center gap-4 rounded-lg border border-border bg-card p-4 transition-colors hover:bg-accent/50"
               >
                 <span className="text-2xl flex-shrink-0">{subject.icon}</span>
                 <div className="flex-1 min-w-0">
@@ -105,15 +84,12 @@ export function SubjectsPage() {
                   </div>
                 </div>
               </Link>
-              </motion.div>
-            ))}
-          </motion.div>
-        )}
-      </div>
+            </div>
+          ))}
+        </div>
+      )}
 
-      <AnimatePresence>
-        {showCreate && <CreateSubjectModal onClose={() => setShowCreate(false)} />}
-      </AnimatePresence>
-    </div>
+      {showCreate && <CreateSubjectModal onClose={() => setShowCreate(false)} />}
+    </PageShell>
   );
 }

@@ -26,9 +26,9 @@ export function formatRelativeTime(date: string): string {
 }
 
 export const DIFFICULTY_CONFIG = {
-  relearn: { label: 'Forgot', color: 'sl-relearn', key: '1' },
+  relearn: { label: 'Again', color: 'sl-relearn', key: '1' },
   hard: { label: 'Hard', color: 'sl-hard', key: '2' },
-  medium: { label: 'Got It', color: 'sl-medium', key: '3' },
+  medium: { label: 'Good', color: 'sl-medium', key: '3' },
   easy: { label: 'Easy', color: 'sl-easy', key: '4' },
 } as const;
 

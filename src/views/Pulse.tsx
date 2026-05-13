@@ -1,6 +1,11 @@
 "use client";
 
 import { useStore } from '@/store/useStore';
+import { buildPulseStats } from '@/lib/stats';
+import { MetricCard } from '@/components/app/MetricCard';
+import { EmptyState } from '@/components/app/EmptyState';
+import { PageShell } from '@/components/app/PageShell';
+import { PageHeader } from '@/components/app/PageHeader';
 import { useMemo } from 'react';
 import { Flame, Target, BookOpen, TrendingUp } from 'lucide-react';
 import type { ReviewHistoryEntry } from '@/lib/types';
@@ -8,31 +13,10 @@ import type { ReviewHistoryEntry } from '@/lib/types';
 export function PulsePage() {
   const { topics, subjects, reviewHistory } = useStore();
 
-  const stats = useMemo(() => {
-    const now = new Date();
-    const dueNow = topics.filter(t => new Date(t.nextReviewDate) <= now).length;
-    const totalReviews = reviewHistory.length;
-    const last30d = reviewHistory.filter(h => {
-      const d = new Date(h.reviewedAt);
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-      return d >= thirtyDaysAgo;
-    });
-    const recentRetention = last30d.length > 0
-      ? Math.round((last30d.filter(h => h.difficultySelected === 'medium' || h.difficultySelected === 'easy').length / last30d.length) * 100)
-      : 0;
-
-    const stateBreakdown = {
-      new: topics.filter(t => t.state === 'new').length,
-      learning: topics.filter(t => t.state === 'learning').length,
-      reviewing: topics.filter(t => t.state === 'reviewing').length,
-      relearning: topics.filter(t => t.state === 'relearning').length,
-    };
-
-    const maxStreak = topics.reduce((max, t) => Math.max(max, t.streak), 0);
-
-    return { dueNow, totalReviews, recentRetention, stateBreakdown, maxStreak, last30dCount: last30d.length };
-  }, [topics, reviewHistory]);
+  const stats = useMemo(
+    () => buildPulseStats(topics, reviewHistory),
+    [topics, reviewHistory],
+  );
 
   const subjectStats = useMemo(() => {
     return subjects.map(s => {
@@ -46,23 +30,25 @@ export function PulsePage() {
   }, [subjects, topics]);
 
   return (
-    <div className="max-w-4xl mx-auto px-6 py-8">
-      <h1 className="text-lg font-semibold text-foreground mb-6">Pulse</h1>
+    <PageShell>
+      <PageHeader
+        title="Pulse"
+        description="Retention, workload, and review rhythm at a glance."
+      />
 
       {topics.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 gap-4 text-center">
-          <div className="text-4xl">📊</div>
-          <h2 className="text-lg font-medium text-foreground">No data yet</h2>
-          <p className="text-sm text-muted-foreground">Start reviewing topics to see your learning analytics here.</p>
-        </div>
+        <EmptyState
+          icon="📊"
+          title="No data yet"
+          description="Start reviewing topics to see your learning analytics here."
+        />
       ) : (
         <>
-          {/* Stats grid */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-            <StatCard icon={Target} label="Due Now" value={stats.dueNow} />
-            <StatCard icon={BookOpen} label="Total Reviews" value={stats.totalReviews} />
-            <StatCard icon={TrendingUp} label="30d Retention" value={`${stats.recentRetention}%`} />
-            <StatCard icon={Flame} label="Best Streak" value={stats.maxStreak} />
+          <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-4">
+            <MetricCard icon={Target} label="Due now" value={stats.dueNow} />
+            <MetricCard icon={BookOpen} label="Total reviews" value={stats.totalReviews} />
+            <MetricCard icon={TrendingUp} label="30d retention" value={`${stats.recentRetention}%`} />
+            <MetricCard icon={Flame} label="Best streak" value={stats.maxStreak} />
           </div>
 
           {/* Review activity heatmap */}
@@ -132,19 +118,7 @@ export function PulsePage() {
           )}
         </>
       )}
-    </div>
-  );
-}
-
-function StatCard({ icon: Icon, label, value }: { icon: React.ElementType; label: string; value: string | number }) {
-  return (
-    <div className="bg-card border border-border rounded-lg p-4">
-      <div className="flex items-center gap-2 text-muted-foreground mb-2">
-        <Icon className="w-4 h-4" />
-        <span className="text-xs">{label}</span>
-      </div>
-      <div className="text-2xl font-bold text-foreground">{value}</div>
-    </div>
+    </PageShell>
   );
 }
 

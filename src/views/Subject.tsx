@@ -22,6 +22,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { PageShell } from '@/components/app/PageShell';
 
 export function SubjectPage() {
   const params = useParams();
@@ -39,10 +40,14 @@ export function SubjectPage() {
 
   if (!subject) {
     return (
-      <div className="flex flex-col items-center justify-center h-full gap-4">
-        <p className="text-muted-foreground">Subject not found</p>
-        <Link href="/topics" className="text-primary text-sm hover:underline">Back to Topics</Link>
-      </div>
+      <PageShell>
+        <div className="flex flex-col items-center justify-center gap-4 py-16 text-center">
+          <p className="text-muted-foreground">Subject not found</p>
+          <Link href="/topics" className="text-sm text-primary hover:underline">
+            Back to Topics
+          </Link>
+        </div>
+      </PageShell>
     );
   }
 
@@ -78,9 +83,9 @@ export function SubjectPage() {
   const mastery = subjectTopics.length > 0 ? Math.round((easyCount / subjectTopics.length) * 100) : 0;
 
   return (
-    <div className="max-w-3xl mx-auto px-6 py-8">
+    <PageShell>
       {/* Breadcrumb */}
-      <Link href="/topics" className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors mb-6">
+      <Link href="/topics" className="mb-6 flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground">
         <ArrowLeft className="w-3.5 h-3.5" /> All Topics
       </Link>
 
@@ -211,6 +216,6 @@ export function SubjectPage() {
           ))
         )}
       </div>
-    </div>
+    </PageShell>
   );
 }
