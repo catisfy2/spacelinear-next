@@ -3,15 +3,15 @@
 import { useState } from 'react';
 import { useStore } from '@/store/useStore';
 import { useAuth } from '@/hooks/useAuth';
-import { X } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
+import { X, Sparkles } from 'lucide-react';
 
 export function CreateTopicModal({ onClose }: { onClose: () => void }) {
   const { addTopic, subjects } = useStore();
   const { user } = useAuth();
   const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
   const [subjectId, setSubjectId] = useState('');
-  const [tags, setTags] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -19,15 +19,35 @@ export function CreateTopicModal({ onClose }: { onClose: () => void }) {
     if (!title.trim() || !user) return;
     setSubmitting(true);
     try {
-      await addTopic({
+      const topic = await addTopic({
         title: title.trim(),
-        description: description.trim() || undefined,
+        description: undefined,
         notes: undefined,
         subjectId,
-        tags: tags.split(',').map(t => t.trim()).filter(Boolean),
+        tags: [],
       }, user.id);
+
+      const subject = subjects.find(s => s.id === subjectId);
+      const { data: { session } } = await supabase.auth.getSession();
+      const accessToken = session?.access_token;
+
+      if (accessToken) {
+        fetch('/api/topics/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            topicId: topic.id,
+            title: topic.title,
+            subjectName: subject?.name ?? null,
+            accessToken,
+          }),
+        });
+      }
+
+      toast.success('Topic created! Generating AI description...');
       onClose();
     } catch {
+      toast.error('Failed to create topic');
       setSubmitting(false);
     }
   };
@@ -70,24 +90,11 @@ export function CreateTopicModal({ onClose }: { onClose: () => void }) {
                 ))}
               </select>
             </div>
-            <div>
-              <label className="text-xs font-medium text-muted-foreground block mb-1.5">Description</label>
-              <textarea
-                value={description}
-                onChange={e => setDescription(e.target.value)}
-                placeholder="What is this topic about?"
-                rows={3}
-                className="w-full bg-muted border border-border rounded-md px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-ring resize-none"
-              />
-            </div>
-            <div>
-              <label className="text-xs font-medium text-muted-foreground block mb-1.5">Tags (comma-separated)</label>
-              <input
-                value={tags}
-                onChange={e => setTags(e.target.value)}
-                placeholder="e.g. transformers, neural-nets"
-                className="w-full bg-muted border border-border rounded-md px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-ring"
-              />
+            <div className="bg-muted/50 rounded-lg border border-border p-3">
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <Sparkles className="w-3.5 h-3.5 text-purple-500" />
+                AI will generate a description and tags after creation
+              </div>
             </div>
             <div className="flex justify-end gap-2 pt-2">
               <button type="button" onClick={onClose} className="px-4 py-2 text-sm rounded-md border border-border text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">

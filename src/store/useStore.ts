@@ -29,6 +29,9 @@ interface AppState {
   fetchResources: (entityId: string, userId: string) => Promise<void>;
   addResource: (resource: Omit<Resource, 'id' | 'createdAt'>, userId: string) => Promise<Resource>;
   deleteResource: (resourceId: string) => Promise<void>;
+  aiGenerationStatus: Record<string, 'pending' | 'done' | 'failed'>;
+  startPollingAiContent: (topicId: string) => void;
+  refreshTopicFromDb: (topicId: string) => Promise<void>;
 }
 
 function mapResourceRow(row: any): Resource {
@@ -306,6 +309,49 @@ export const useStore = create<AppState>()((set, get) => ({
   deleteResource: async (resourceId) => {
     await supabase.from('resources').delete().eq('id', resourceId);
     set(s => ({ resources: s.resources.filter(r => r.id !== resourceId) }));
+  },
+
+  aiGenerationStatus: {} as Record<string, 'pending' | 'done' | 'failed'>,
+
+  startPollingAiContent: (topicId: string) => {
+    set(s => ({ aiGenerationStatus: { ...s.aiGenerationStatus, [topicId]: 'pending' as const } }));
+    let attempts = 0;
+    const maxAttempts = 20;
+    const interval = setInterval(async () => {
+      attempts++;
+      const { data } = await supabase
+        .from('topics')
+        .select('description, tags')
+        .eq('id', topicId)
+        .single();
+      if (data?.description) {
+        clearInterval(interval);
+        const topic = get().topics.find(t => t.id === topicId);
+        if (topic) {
+          set(s => ({
+            topics: s.topics.map(t => t.id === topicId ? { ...t, description: data.description, tags: data.tags ?? [] } : t),
+            aiGenerationStatus: { ...s.aiGenerationStatus, [topicId]: 'done' as const },
+          }));
+        }
+      } else if (attempts >= maxAttempts) {
+        clearInterval(interval);
+        set(s => ({ aiGenerationStatus: { ...s.aiGenerationStatus, [topicId]: 'failed' as const } }));
+      }
+    }, 3000);
+  },
+
+  refreshTopicFromDb: async (topicId: string) => {
+    const { data } = await supabase
+      .from('topics')
+      .select('*')
+      .eq('id', topicId)
+      .single();
+    if (data) {
+      const topic = mapTopicRow(data);
+      set(s => ({
+        topics: s.topics.map(t => t.id === topicId ? topic : t),
+      }));
+    }
   },
 }));
 

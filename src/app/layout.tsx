@@ -1,5 +1,6 @@
 import "./global.css";
 import type { Metadata, Viewport } from "next";
+import Script from "next/script";
 import { Providers } from "./providers";
 
 export const metadata: Metadata = {
@@ -40,21 +41,17 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              (function() {
-                var theme = localStorage.getItem('sl-theme');
-                if (!theme) theme = 'dark';
-                var resolved = theme;
-                if (theme === 'system') {
-                  resolved = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-                }
-                document.documentElement.classList.add(resolved);
-              })();
-            `,
-          }}
-        />
+        <Script id="theme-init" strategy="beforeInteractive">
+          {`(function() {
+            var theme = localStorage.getItem('sl-theme');
+            if (!theme) theme = 'dark';
+            var resolved = theme;
+            if (theme === 'system') {
+              resolved = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+            }
+            document.documentElement.classList.add(resolved);
+          })();`}
+        </Script>
       </head>
       <body>
         <Providers>{children}</Providers>

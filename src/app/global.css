@@ -1,345 +1,188 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap");
 @import url("https://fonts.googleapis.com/css2?family=Source+Serif+Pro&display=swap");
-@import "@mdxeditor/editor/style.css";
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
-  :root,
-  .light {
-    --background: 47.9999 33.4124% 97.0613%;
-    --foreground: 48.0004 19.5733% 20.0067%;
-    /* Slightly elevated vs background for clearer surfaces */
-    --card: 48 35% 99%;
-    --card-foreground: 59.9977 2.5881% 7.6423%;
-    --popover: 300 50% 100.0000%;
-    --popover-foreground: 50.7697 19.3858% 13.1359%;
-    --primary: 22.2046 56.4292% 55.8770%;
-    --primary-foreground: 300 50% 100.0000%;
-    --secondary: 46.1535 22.8633% 88.8169%;
-    --secondary-foreground: 50.7703 8.4755% 30.0071%;
-    --muted: 43.9999 29.4191% 89.9959%;
-    --muted-foreground: 50.0005 2.3533% 50.1937%;
-    --accent: 46.1535 22.8633% 88.8169%;
-    --accent-foreground: 50.7697 19.3858% 13.1359%;
-    --destructive: 59.9977 2.5881% 7.6423%;
-    --destructive-foreground: 300 50% 100.0000%;
-    --border: 49.9994 7.5433% 84.3127%;
-    --input: 50.7685 8.0001% 68.0389%;
-    --ring: 15.1107 55.5301% 52.3487%;
-    --radius: 0.75rem;
-    --chart-1: 18.2817 57.1503% 43.9157%;
-    --chart-2: 251.4525 84.5858% 74.5083%;
-    --chart-3: 46.1541 28.2179% 81.9634%;
-    --chart-4: 256.5505 49.1031% 88.4329%;
-    --chart-5: 17.7782 60.0063% 44.1217%;
-    --sidebar: 51.4288 25.9022% 94.7126%;
-    --sidebar-background: 51.4288 25.9022% 94.7126%;
-    --sidebar-foreground: 59.9983 2.5347% 23.3334%;
-    --sidebar-primary: 15.1107 55.5301% 52.3487%;
-    --sidebar-primary-foreground: 300 0.0000% 98.4330%;
-    --sidebar-accent: 46.1535 22.8633% 88.8169%;
-    --sidebar-accent-foreground: 330 0.0000% 20.3885%;
-    --sidebar-border: 300 0.0000% 92.1607%;
-    --sidebar-ring: 330 0.0000% 70.9799%;
-    --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif, Apple Color Emoji, Segoe UI Emoji, Segoe UI Symbol, Noto Color Emoji;
-    --font-serif: "Source Serif Pro", ui-serif, Georgia, Cambria, Times New Roman, Times, serif;
-    --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, Liberation Mono, Courier New, monospace;
-    --shadow-2xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
-    --shadow-xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
-    --shadow-sm: 0px 1px 1.5px 0px hsla(0, 0%, 0%, 0.56);
-    --shadow: 0px 1px 3px 0px hsla(0, 0%, 0%, 0.56);
-    --shadow-md: 0px 1px 4.5px 0px hsla(0, 0%, 0%, 0.56);
-    --shadow-lg: 0px 1px 7.5px 0px hsla(0, 0%, 0%, 0.56);
-    --shadow-xl: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 8px 10px -1px hsl(0 0% 0% / 0.10);
-    --shadow-2xl: 0 1px 3px 0px hsl(0 0% 0% / 0.25);
-    --tracking-normal: 0em;
-    --spacing: 0.25rem;
-    --shadow-color: oklch(0 0 0);
-    --shadow-opacity: 0.1;
-    --shadow-blur: 3px;
-    --shadow-spread: 0px;
+    :root,
+    .light {
+        --background: 47.9999 33.4124% 97.0613%;
+        --foreground: 48.0004 19.5733% 20.0067%;
+        /* Slightly elevated vs background for clearer surfaces */
+        --card: 48 35% 99%;
+        --card-foreground: 59.9977 2.5881% 7.6423%;
+        --popover: 300 50% 100%;
+        --popover-foreground: 50.7697 19.3858% 13.1359%;
+        --primary: 22.2046 56.4292% 55.877%;
+        --primary-foreground: 300 50% 100%;
+        --secondary: 46.1535 22.8633% 88.8169%;
+        --secondary-foreground: 50.7703 8.4755% 30.0071%;
+        --muted: 43.9999 29.4191% 89.9959%;
+        --muted-foreground: 50.0005 2.3533% 50.1937%;
+        --accent: 46.1535 22.8633% 88.8169%;
+        --accent-foreground: 50.7697 19.3858% 13.1359%;
+        --destructive: 59.9977 2.5881% 7.6423%;
+        --destructive-foreground: 300 50% 100%;
+        --border: 49.9994 7.5433% 84.3127%;
+        --input: 50.7685 8.0001% 68.0389%;
+        --ring: 15.1107 55.5301% 52.3487%;
+        --radius: 0.75rem;
+        --chart-1: 18.2817 57.1503% 43.9157%;
+        --chart-2: 251.4525 84.5858% 74.5083%;
+        --chart-3: 46.1541 28.2179% 81.9634%;
+        --chart-4: 256.5505 49.1031% 88.4329%;
+        --chart-5: 17.7782 60.0063% 44.1217%;
+        --sidebar: 51.4288 25.9022% 94.7126%;
+        --sidebar-background: 51.4288 25.9022% 94.7126%;
+        --sidebar-foreground: 59.9983 2.5347% 23.3334%;
+        --sidebar-primary: 15.1107 55.5301% 52.3487%;
+        --sidebar-primary-foreground: 300 0% 98.433%;
+        --sidebar-accent: 46.1535 22.8633% 88.8169%;
+        --sidebar-accent-foreground: 330 0% 20.3885%;
+        --sidebar-border: 300 0% 92.1607%;
+        --sidebar-ring: 330 0% 70.9799%;
+        --font-sans:
+            "Inter", ui-sans-serif, system-ui, sans-serif, Apple Color Emoji,
+            Segoe UI Emoji, Segoe UI Symbol, Noto Color Emoji;
+        --font-serif:
+            "Source Serif Pro", ui-serif, Georgia, Cambria, Times New Roman,
+            Times, serif;
+        --font-mono:
+            "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco,
+            Consolas, Liberation Mono, Courier New, monospace;
+        --shadow-2xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
+        --shadow-xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
+        --shadow-sm: 0px 1px 1.5px 0px hsla(0, 0%, 0%, 0.56);
+        --shadow: 0px 1px 3px 0px hsla(0, 0%, 0%, 0.56);
+        --shadow-md: 0px 1px 4.5px 0px hsla(0, 0%, 0%, 0.56);
+        --shadow-lg: 0px 1px 7.5px 0px hsla(0, 0%, 0%, 0.56);
+        --shadow-xl:
+            0 1px 3px 0px hsl(0 0% 0% / 0.1), 0 8px 10px -1px hsl(0 0% 0% / 0.1);
+        --shadow-2xl: 0 1px 3px 0px hsl(0 0% 0% / 0.25);
+        --tracking-normal: 0em;
+        --spacing: 0.25rem;
+        --shadow-color: oklch(0 0 0);
+        --shadow-opacity: 0.1;
+        --shadow-blur: 3px;
+        --shadow-spread: 0px;
 
-    --sl-relearn: 0 72% 51%;
-    --sl-hard: 25 95% 45%;
-    --sl-medium: 48 96% 40%;
-    --sl-easy: 142 71% 35%;
-    --sl-new: 220 10% 50%;
-    --sl-surface-hover: 220 14% 94%;
-    --sl-surface-active: 220 14% 91%;
-    --sl-sidebar-width: 220px;
-    --sl-sidebar-collapsed: 48px;
-  }
+        --sl-relearn: 0 72% 51%;
+        --sl-hard: 25 95% 45%;
+        --sl-medium: 48 96% 40%;
+        --sl-easy: 142 71% 35%;
+        --sl-new: 220 10% 50%;
+        --sl-surface-hover: 220 14% 94%;
+        --sl-surface-active: 220 14% 91%;
+        --sl-sidebar-width: 220px;
+        --sl-sidebar-collapsed: 48px;
+    }
 
-  .dark {
-    --background: 60.0033 2.6722% 14.5167%;
-    --foreground: 46.1540 9.7646% 73.9254%;
-    --card: 48 4% 18%;
-    --card-foreground: 47.9999 33.4124% 97.0613%;
-    --popover: 60.0012 2.1175% 18.4372%;
-    --popover-foreground: 60.0003 5.4307% 89.2231%;
-    --primary: 14.7691 63.0842% 59.6063%;
-    --primary-foreground: 300 50% 100.0000%;
-    --secondary: 47.9999 33.4124% 97.0613%;
-    --secondary-foreground: 60.0012 2.1175% 18.4372%;
-    --muted: 60.0011 3.8343% 10.1932%;
-    --muted-foreground: 48 6% 78%;
-    --accent: 47.9998 10.6480% 9.2123%;
-    --accent-foreground: 51.4288 25.9022% 94.7126%;
-    --destructive: 0.0029 84.2066% 60.1920%;
-    --destructive-foreground: 300 50% 100.0000%;
-    --border: 59.9985 5.0978% 23.1333%;
-    --input: 52.5006 5.1189% 30.5892%;
-    --ring: 14.7691 63.0842% 59.6063%;
-    --chart-1: 18.2817 57.1503% 43.9157%;
-    --chart-2: 251.4525 84.5858% 74.5083%;
-    --chart-3: 47.9998 10.6480% 9.2123%;
-    --chart-4: 248.2794 25.2338% 22.5483%;
-    --chart-5: 17.7782 60.0063% 44.1217%;
-    --sidebar: 29.9991 3.2824% 11.7621%;
-    --sidebar-background: 29.9991 3.2824% 11.7621%;
-    --sidebar-foreground: 46.1540 9.7646% 73.9254%;
-    --sidebar-primary: 330 0.0000% 20.3885%;
-    --sidebar-primary-foreground: 300 0.0000% 98.4330%;
-    --sidebar-accent: 60.0062 3.3683% 5.6906%;
-    --sidebar-accent-foreground: 46.1540 9.7646% 73.9254%;
-    --sidebar-border: 300 0.0000% 92.1607%;
-    --sidebar-ring: 330 0.0000% 70.9799%;
-    --shadow-2xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
-    --shadow-xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
-    --shadow-sm: 0px 1px 1.5px 0px hsla(0, 0%, 0%, 0.56);
-    --shadow: 0px 1px 3px 0px hsla(0, 0%, 0%, 0.56);
-    --shadow-md: 0px 1px 4.5px 0px hsla(0, 0%, 0%, 0.56);
-    --shadow-lg: 0px 1px 7.5px 0px hsla(0, 0%, 0%, 0.56);
-    --shadow-xl: 0 1px 3px 0px hsl(0 0% 0% / 0.10), 0 8px 10px -1px hsl(0 0% 0% / 0.10);
-    --shadow-2xl: 0 1px 3px 0px hsl(0 0% 0% / 0.25);
-    --radius: 0.75rem;
+    .dark {
+        --background: 60.0033 2.6722% 14.5167%;
+        --foreground: 46.154 9.7646% 73.9254%;
+        --card: 48 4% 18%;
+        --card-foreground: 47.9999 33.4124% 97.0613%;
+        --popover: 60.0012 2.1175% 18.4372%;
+        --popover-foreground: 60.0003 5.4307% 89.2231%;
+        --primary: 14.7691 63.0842% 59.6063%;
+        --primary-foreground: 300 50% 100%;
+        --secondary: 47.9999 33.4124% 97.0613%;
+        --secondary-foreground: 60.0012 2.1175% 18.4372%;
+        --muted: 60.0011 3.8343% 10.1932%;
+        --muted-foreground: 48 6% 78%;
+        --accent: 47.9998 10.648% 9.2123%;
+        --accent-foreground: 51.4288 25.9022% 94.7126%;
+        --destructive: 0.0029 84.2066% 60.192%;
+        --destructive-foreground: 300 50% 100%;
+        --border: 59.9985 5.0978% 23.1333%;
+        --input: 52.5006 5.1189% 30.5892%;
+        --ring: 14.7691 63.0842% 59.6063%;
+        --chart-1: 18.2817 57.1503% 43.9157%;
+        --chart-2: 251.4525 84.5858% 74.5083%;
+        --chart-3: 47.9998 10.648% 9.2123%;
+        --chart-4: 248.2794 25.2338% 22.5483%;
+        --chart-5: 17.7782 60.0063% 44.1217%;
+        --sidebar: 29.9991 3.2824% 11.7621%;
+        --sidebar-background: 29.9991 3.2824% 11.7621%;
+        --sidebar-foreground: 46.154 9.7646% 73.9254%;
+        --sidebar-primary: 330 0% 20.3885%;
+        --sidebar-primary-foreground: 300 0% 98.433%;
+        --sidebar-accent: 60.0062 3.3683% 5.6906%;
+        --sidebar-accent-foreground: 46.154 9.7646% 73.9254%;
+        --sidebar-border: 300 0% 92.1607%;
+        --sidebar-ring: 330 0% 70.9799%;
+        --shadow-2xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
+        --shadow-xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
+        --shadow-sm: 0px 1px 1.5px 0px hsla(0, 0%, 0%, 0.56);
+        --shadow: 0px 1px 3px 0px hsla(0, 0%, 0%, 0.56);
+        --shadow-md: 0px 1px 4.5px 0px hsla(0, 0%, 0%, 0.56);
+        --shadow-lg: 0px 1px 7.5px 0px hsla(0, 0%, 0%, 0.56);
+        --shadow-xl:
+            0 1px 3px 0px hsl(0 0% 0% / 0.1), 0 8px 10px -1px hsl(0 0% 0% / 0.1);
+        --shadow-2xl: 0 1px 3px 0px hsl(0 0% 0% / 0.25);
+        --radius: 0.75rem;
 
-    --sl-relearn: 0 72% 51%;
-    --sl-hard: 25 95% 53%;
-    --sl-medium: 48 96% 53%;
-    --sl-easy: 142 71% 45%;
-    --sl-new: 220 10% 50%;
-    --sl-surface-hover: 228 14% 14%;
-    --sl-surface-active: 228 14% 16%;
-    --sl-sidebar-width: 220px;
-    --sl-sidebar-collapsed: 48px;
-  }
+        --sl-relearn: 0 72% 51%;
+        --sl-hard: 25 95% 53%;
+        --sl-medium: 48 96% 53%;
+        --sl-easy: 142 71% 45%;
+        --sl-new: 220 10% 50%;
+        --sl-surface-hover: 228 14% 14%;
+        --sl-surface-active: 228 14% 16%;
+        --sl-sidebar-width: 220px;
+        --sl-sidebar-collapsed: 48px;
+    }
 }
 
 @layer base {
-  * {
-    @apply border-border;
-  }
+    * {
+        @apply border-border;
+    }
 
-  body {
-    @apply bg-background text-foreground font-sans antialiased;
-  }
+    body {
+        @apply bg-background text-foreground font-sans antialiased;
+    }
 }
 
 @layer utilities {
-  .text-relearn { color: hsl(var(--sl-relearn)); }
-  .text-hard { color: hsl(var(--sl-hard)); }
-  .text-medium-rating { color: hsl(var(--sl-medium)); }
-  .text-easy { color: hsl(var(--sl-easy)); }
+    .text-relearn {
+        color: hsl(var(--sl-relearn));
+    }
+    .text-hard {
+        color: hsl(var(--sl-hard));
+    }
+    .text-medium-rating {
+        color: hsl(var(--sl-medium));
+    }
+    .text-easy {
+        color: hsl(var(--sl-easy));
+    }
 
-  .bg-relearn { background-color: hsl(var(--sl-relearn)); }
-  .bg-hard { background-color: hsl(var(--sl-hard)); }
-  .bg-medium-rating { background-color: hsl(var(--sl-medium)); }
-  .bg-easy { background-color: hsl(var(--sl-easy)); }
+    .bg-relearn {
+        background-color: hsl(var(--sl-relearn));
+    }
+    .bg-hard {
+        background-color: hsl(var(--sl-hard));
+    }
+    .bg-medium-rating {
+        background-color: hsl(var(--sl-medium));
+    }
+    .bg-easy {
+        background-color: hsl(var(--sl-easy));
+    }
 
-  .bg-relearn\/10 { background-color: hsl(var(--sl-relearn) / 0.1); }
-  .bg-hard\/10 { background-color: hsl(var(--sl-hard) / 0.1); }
-  .bg-medium-rating\/10 { background-color: hsl(var(--sl-medium) / 0.1); }
-  .bg-easy\/10 { background-color: hsl(var(--sl-easy) / 0.1); }
-}
-
-/* MDXEditor theme bridge */
-.mdx-note-editor {
-  --baseBg: hsl(var(--background));
-  --baseBgSubtle: hsl(var(--card));
-  --baseBgHover: hsl(var(--accent));
-  --baseBorder: hsl(var(--border));
-  --baseBorderHover: hsl(var(--ring));
-  --baseText: hsl(var(--foreground));
-  --baseTextContrast: hsl(var(--foreground));
-  --baseTextSecondary: hsl(var(--muted-foreground));
-  --accentBase: hsl(var(--primary));
-  --accentBg: hsl(var(--primary) / 0.12);
-  --accentBgHover: hsl(var(--primary) / 0.18);
-  --accentText: hsl(var(--primary));
-  --accentTextContrast: hsl(var(--primary-foreground));
-  --accentBorder: hsl(var(--primary) / 0.35);
-  color: hsl(var(--foreground));
-}
-
-.mdx-note-editor-content {
-  min-height: 60vh;
-  padding: 10px 42px 60px;
-  font-family: inherit;
-  font-size: 1rem;
-  line-height: 1.65;
-  color: hsl(var(--foreground));
-}
-
-.mdx-note-editor-content ::selection,
-.mdx-note-editor-content::-moz-selection {
-  background: hsl(var(--primary) / 0.25);
-}
-
-.mdx-note-editor-content > * + * {
-  margin-top: 0.5em;
-}
-
-.mdx-note-editor-content h1,
-.mdx-note-editor-content h2,
-.mdx-note-editor-content h3,
-.mdx-note-editor-content h4,
-.mdx-note-editor-content h5,
-.mdx-note-editor-content h6 {
-  font-weight: 700;
-  line-height: 1.25;
-  color: hsl(var(--foreground));
-  margin-top: 1em;
-  margin-bottom: 0.25em;
-  letter-spacing: -0.01em;
-}
-.mdx-note-editor-content h1 { font-size: 2rem; }
-.mdx-note-editor-content h2 { font-size: 1.6rem; }
-.mdx-note-editor-content h3 { font-size: 1.3rem; }
-.mdx-note-editor-content h4 { font-size: 1.1rem; }
-.mdx-note-editor-content h5 { font-size: 1rem; }
-.mdx-note-editor-content h6 { font-size: 0.95rem; color: hsl(var(--muted-foreground)); }
-
-.mdx-note-editor-content p {
-  margin: 0;
-  line-height: 1.65;
-}
-
-.mdx-note-editor-content strong { font-weight: 700; }
-.mdx-note-editor-content em { font-style: italic; }
-.mdx-note-editor-content u { text-decoration: underline; }
-.mdx-note-editor-content s,
-.mdx-note-editor-content del { text-decoration: line-through; }
-.mdx-note-editor-content mark {
-  background-color: hsl(var(--primary) / 0.18);
-  color: inherit;
-  padding: 0 0.15em;
-  border-radius: 2px;
-}
-
-.mdx-note-editor-content a {
-  color: hsl(var(--primary));
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
-.mdx-note-editor-content a:hover { text-decoration-thickness: 2px; }
-
-.mdx-note-editor-content ul,
-.mdx-note-editor-content ol {
-  margin: 0.25em 0;
-  padding-left: 1.5rem;
-}
-.mdx-note-editor-content ul { list-style: disc outside; }
-.mdx-note-editor-content ol { list-style: decimal outside; }
-.mdx-note-editor-content ul ul,
-.mdx-note-editor-content ol ol,
-.mdx-note-editor-content ul ol,
-.mdx-note-editor-content ol ul {
-  margin: 0;
-  padding-left: 1.5rem;
-}
-.mdx-note-editor-content li { margin: 0.15em 0; }
-.mdx-note-editor-content li > p { display: inline; }
-
-.mdx-note-editor-content ul[class*="checklist"],
-.mdx-note-editor-content ul[__lexicallisttype="check"] {
-  list-style: none;
-  padding-left: 0;
-}
-
-.mdx-note-editor-content blockquote {
-  border-left: 3px solid hsl(var(--primary));
-  background-color: hsl(var(--muted) / 0.4);
-  padding: 0.4em 0.9em;
-  margin: 0.6em 0;
-  border-radius: 0 6px 6px 0;
-  color: hsl(var(--muted-foreground));
-  font-style: italic;
-}
-.mdx-note-editor-content blockquote > p { display: inline; }
-
-.mdx-note-editor-content code {
-  background-color: hsl(var(--muted));
-  color: hsl(var(--foreground));
-  padding: 0.125em 0.375em;
-  border-radius: 4px;
-  font-family: var(--font-mono);
-  font-size: 0.9em;
-}
-
-.mdx-note-editor-content pre,
-.mdx-note-editor [class*="codeMirrorWrapper"] {
-  border: 1px solid hsl(var(--border));
-  background-color: hsl(var(--muted));
-  border-radius: 8px;
-  overflow: hidden;
-}
-.mdx-note-editor-content pre code {
-  background-color: transparent;
-  padding: 0;
-  font-size: 0.875em;
-}
-
-.mdx-note-editor-content hr {
-  border: none;
-  border-top: 1px solid hsl(var(--border));
-  margin: 1.5em 0;
-}
-
-.mdx-note-editor-content table {
-  width: 100%;
-  border-collapse: collapse;
-  margin: 0.6em 0;
-}
-.mdx-note-editor-content th,
-.mdx-note-editor-content td {
-  border: 1px solid hsl(var(--border));
-  padding: 0.4em 0.6em;
-  text-align: left;
-}
-.mdx-note-editor-content th {
-  background-color: hsl(var(--muted));
-  font-weight: 600;
-}
-
-.math-rendered {
-  cursor: pointer;
-  border-radius: 8px;
-  border: 1px solid transparent;
-  color: hsl(var(--foreground));
-  transition: border-color 0.15s, background-color 0.15s;
-}
-
-.math-rendered:hover,
-.math-rendered:focus-visible {
-  border-color: hsl(var(--border));
-  background-color: hsl(var(--accent) / 0.4);
-  outline: none;
-}
-
-.math-rendered--block {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  margin: 8px 0;
-  padding: 12px 16px;
-}
-
-.math-rendered--inline {
-  display: inline-flex;
-  align-items: center;
-  padding: 1px 4px;
+    .bg-relearn\/10 {
+        background-color: hsl(var(--sl-relearn) / 0.1);
+    }
+    .bg-hard\/10 {
+        background-color: hsl(var(--sl-hard) / 0.1);
+    }
+    .bg-medium-rating\/10 {
+        background-color: hsl(var(--sl-medium) / 0.1);
+    }
+    .bg-easy\/10 {
+        background-color: hsl(var(--sl-easy) / 0.1);
+    }
 }

@@ -1,11 +1,12 @@
 import Link from 'next/link';
-import { Flame } from 'lucide-react';
+import { Flame, Sparkles } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { formatNextReview } from '@/lib/constants';
 import type { Subject, Topic } from '@/lib/types';
 import { TopicActionsMenu } from '@/components/topics/TopicActionsMenu';
 import { TopicStateBadge } from '@/components/app/TopicStateBadge';
 import { TopicDifficultyBadge } from '@/components/app/TopicDifficultyBadge';
+import { useStore } from '@/store/useStore';
 
 export function TopicRow({
   topic,
@@ -24,12 +25,17 @@ export function TopicRow({
       )}
     >
       <div className="min-w-0 flex-1">
-        <Link
-          href={`/topics/${topic.id}`}
-          className="block truncate text-left text-base font-medium text-foreground hover:text-primary"
-        >
-          {topic.title}
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link
+            href={`/topics/${topic.id}`}
+            className="block truncate text-left text-base font-medium text-foreground hover:text-primary"
+          >
+            {topic.title}
+          </Link>
+          {!topic.description && useStore.getState().aiGenerationStatus[topic.id] === 'pending' && (
+            <Sparkles className="w-3.5 h-3.5 text-purple-500 shrink-0 animate-pulse" />
+          )}
+        </div>
         {subject ? (
           <div className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
             <span aria-hidden>{subject.icon}</span>
