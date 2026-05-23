@@ -1,0 +1,59 @@
+Product Requirement Document (PRD) Addendum: AI Operations Co-Pilot & Feel-Good Study Coach
+Status: Ready for Implementation
+Author: Product Lead
+Target Stack: Next.js 16 (App Router), Supabase (Postgres + Auth), Groq API via Vercel AI SDK, Inngest, Zustand, Tailwind CSS + shadcn/ui.
+1. Feature Overview & Objectives
+This document serves as an isolated feature specification for adding an Agentic AI Study Coach to the existing SpaceLinear ecosystem.
+Instead of acting as a static text assistant, this feature bridges conversational interaction with real-time app execution. It combines Feel-Good Productivity coaching pillars with autonomous database actions to automate manual workflow scaffolding (creating subjects, topics, and inserting initial MDX structures).
+2. Core Functional Pillars (The Unified Persona)
+The AI Coach must seamlessly merge two operational identities within a single conversation loop:
+2.1 The Feel-Good Productivity Blueprint
+Whenever a user interacts with the coach panel, the assistant must structure its conversational replies around five core behavioral rules:
+Initial Discovery Framework: The coach must actively prompt the user to declare how many subjects they are currently balancing and what core topics need structural breakdown instead of waiting passively for manual setup.
+Prioritization Mapping: The coach must guide the user to identify exactly one "Daily Adventure" (the highest leverage topic/task that defines a successful day) and two "Side Quests" (health, lifestyle, or break-focused activities).
+The Priority Rule: If the user states they "do not have time" for a critical learning block or side quest, the coach must gently remind them that time constraints are fundamentally a reflection of priority.
+The 3 Ps Strategy: Before committing massive learning structures to the database, the coach must challenge the user to define their entry across the 3 Ps:
+Play: How can they make interacting with this specific flashcard or topic inherently engaging?
+Power: How can they maximize personal control over how they digest this topic?
+People: Who is their designated study peer, classmate, or accountability anchor for this concept?
+The Unblock Method (Follow-Through): If a user expresses procrastination or overwhelm regarding a topic, the coach must systematically walk them through diagnosing Clarity, Courage, and Inertia, breaking the target topic down into frictionless chunks.
+2.2 Agentic Abilities (Database Tooling)
+The coach must be given permission to autonomously execute database mutations when the user approves a learning path in chat.
+       +--------------------------------------------+
+       |   Conversational Intent (Chat Prompt)       |
+       +--------------------------------------------+
+                             |
+                             v
+       +--------------------------------------------+
+       |   Groq LLM Engine (Multi-Step Evaluation)  |
+       +--------------------------------------------+
+                 |                        |
+        (Calls Tool 1)           (Calls Tool 2)
+                 v                        v
++------------------------+      +-------------------------------+
+|  `createSubject()`     |      |  `createTopic()`              |
+|  Inserts record into   |      |  Inserts record into `topics` |
+|  `subjects` table      |      |  mapped to the `subjectId`    |
++------------------------+      +-------------------------------+
+3. Technical Specifications & Tool Design
+The endpoint (/api/coach/agent/route.ts) utilizes the Vercel AI SDK to expose tools directly to the Groq model (llama-3.3-70b-versatile).
+3.1 Exposed LLM Tools
+The agent has access to two explicit local execution handlers. Every tool operation must strictly extract the server-validated user context (auth.users(id)) to enforce Row Level Security (RLS).
+1. createSubject
+Purpose: Sets up a high-level bucket for grouping notes and flashcards.
+Parameters:
+name (string, required): The title of the domain (e.g., "Algorithm Design").
+description (string, optional): Contextual scope.
+Action: Direct database insertion into the subjects table. Returns the newly generated subjectId.
+2. createTopic
+Purpose: Scaffolds an active recall item due immediately for review.
+Parameters:
+subjectId (uuid, required): The parent reference id.
+title (string, required): The specific flashcard/note item (e.g., "Dynamic Programming").
+description (string, required): High-level breakdown summary.
+content (string, optional): Baseline markdown structure.
+Action: Direct insertion into the topics table. It must initialize the tracking state to 'new', tag it with ['ai-scaffolded'], and stamp next_review_date to the current system date so it automatically appears in the user's Today review queue.
+4. UI/UX Additions & Interaction Logic
+Component Placement: A modern, collapsable slide-out utility panel or split-screen interface integrated alongside the primary application layout grids.
+Diagnostic Execution Streams: When tools run in the background (createSubject or createTopic), the chat container must intercept the tool lifecycle updates and display them as inline operational tags (e.g., ⚙️ Building Subject: Web Engineering...) so the user can witness the agentic adjustments transparently.
+Cache Revalidation Workflow: To eliminate stale screen instances, the client-side interaction block must hook into the chat interface's lifecycle (onFinish). When a sequence completes, it must programmatically trigger a cash invalidation cycle for TanStack Query keys ['subjects'] and ['topics'], providing instant, non-blocking screen updates across SpaceLinear.

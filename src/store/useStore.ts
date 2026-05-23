@@ -15,7 +15,7 @@ interface AppState {
   // Actions
   toggleSidebar: () => void;
   setSelectedSidebarTopicId: (id: string | null) => void;
-  fetchAll: (userId: string) => Promise<void>;
+  fetchAll: (userId: string, options?: { silent?: boolean }) => Promise<void>;
   clear: () => void;
   addSubject: (subject: Omit<Subject, 'id' | 'createdAt'>, userId: string) => Promise<Subject>;
   addTopic: (topic: Omit<Topic, 'id' | 'createdAt' | 'state' | 'currentDifficulty' | 'nextReviewDate' | 'currentIntervalDays' | 'easeFactor' | 'totalReviews' | 'correctReviews' | 'streak' | 'firstReviewedAt' | 'lastReviewedAt'>, userId: string) => Promise<Topic>;
@@ -107,8 +107,10 @@ export const useStore = create<AppState>()((set, get) => ({
   toggleSidebar: () => set(s => ({ sidebarCollapsed: !s.sidebarCollapsed })),
   setSelectedSidebarTopicId: (id) => set({ selectedSidebarTopicId: id }),
 
-  fetchAll: async (userId: string) => {
-    set({ loading: true });
+  fetchAll: async (userId: string, options?: { silent?: boolean }) => {
+    if (!options?.silent) {
+      set({ loading: true });
+    }
     const [subjectsRes, topicsRes, historyRes] = await Promise.all([
       supabase.from('subjects').select('*').eq('user_id', userId),
       supabase.from('topics').select('*').eq('user_id', userId),

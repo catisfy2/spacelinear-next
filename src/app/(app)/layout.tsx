@@ -1,6 +1,5 @@
 import { AuthGate } from "../AuthGate";
-import { DataLoader } from "../DataLoader";
-import { AppShell } from "@/components/shell/AppShell";
+import { AppLayoutClient } from "./AppLayoutClient";
 
 export default function AppLayout({
   children,
@@ -9,9 +8,7 @@ export default function AppLayout({
 }) {
   return (
     <AuthGate>
-      <DataLoader>
-        <AppShell>{children}</AppShell>
-      </DataLoader>
+      <AppLayoutClient>{children}</AppLayoutClient>
     </AuthGate>
   );
 }

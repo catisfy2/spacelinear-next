@@ -6,8 +6,10 @@ import { useStore } from '@/store/useStore';
 import { useAuth } from '@/hooks/useAuth';
 import { previewIntervals } from '@/lib/algorithm';
 import { formatInterval, DIFFICULTY_CONFIG, formatRelativeTime } from '@/lib/constants';
-import type { Difficulty, Topic } from '@/lib/types';
-import { Flame, Clock, BarChart2, ChevronRight, Play, Sparkles } from 'lucide-react';
+import type { Difficulty, QuizQuestion, Topic } from '@/lib/types';
+import { hasQuizContent } from '@/lib/quiz';
+import { QuizCard } from '@/components/quiz/QuizCard';
+import { Flame, Clock, BarChart2, ChevronRight, Play, Sparkles, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { CreateTopicModal } from '@/components/topics/CreateTopicModal';
 import { PageShell } from '@/components/app/PageShell';
@@ -67,15 +69,22 @@ function greetingLabel(): string {
   return 'Good evening';
 }
 
+type ReviewMode = 'quiz' | 'manual';
+
 export function TodayPage() {
-  const { getDueTopics, submitReview, subjects, topics, reviewHistory } = useStore();
-  const { user } = useAuth();
+  const { getDueTopics, submitReview, subjects, topics, reviewHistory, resources, fetchResources } =
+    useStore();
+  const { user, session } = useAuth();
   const dueTopics = useMemo(() => getDueTopics(), [getDueTopics, topics]);
 
   const [phase, setPhase] = useState<SessionPhase>('overview');
   const [queue, setQueue] = useState<Topic[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showRating, setShowRating] = useState(false);
+  const [reviewMode, setReviewMode] = useState<ReviewMode>('manual');
+  const [quizQuestions, setQuizQuestions] = useState<QuizQuestion[] | null>(null);
+  const [quizLoading, setQuizLoading] = useState(false);
+  const [quizError, setQuizError] = useState<string | null>(null);
   const [sessionStats, setSessionStats] = useState({ total: 0, upgrades: 0, downgrades: 0 });
   const [showCreateTopic, setShowCreateTopic] = useState(false);
 
@@ -91,18 +100,104 @@ export function TodayPage() {
   const tomorrowDue = useMemo(() => countDueTomorrow(topics), [topics]);
   const weakest = useMemo(() => getWeakestSubject(subjects, topics), [subjects, topics]);
 
+  const resetQuizState = useCallback(() => {
+    setQuizQuestions(null);
+    setQuizLoading(false);
+    setQuizError(null);
+  }, []);
+
+  const resetReviewState = useCallback(() => {
+    setShowRating(false);
+    setReviewMode('manual');
+    resetQuizState();
+  }, [resetQuizState]);
+
   const startReview = useCallback(() => {
     const fresh = getDueTopics();
     setQueue(fresh);
     setCurrentIndex(0);
-    setShowRating(false);
+    resetReviewState();
     setSessionStats({ total: 0, upgrades: 0, downgrades: 0 });
     setPhase('review');
-  }, [getDueTopics]);
+  }, [getDueTopics, resetReviewState]);
 
   const currentTopic = queue[currentIndex];
   const subject = currentTopic ? subjects.find((s) => s.id === currentTopic.subjectId) : null;
   const intervals = currentTopic ? previewIntervals(currentTopic) : null;
+  const topicResources = useMemo(
+    () => (currentTopic ? resources.filter((r) => r.entityId === currentTopic.id) : []),
+    [currentTopic, resources],
+  );
+
+  useEffect(() => {
+    if (phase !== 'review' || !currentTopic || !user) return;
+
+    let cancelled = false;
+
+    const prepareReview = async () => {
+      setShowRating(false);
+      resetQuizState();
+      await fetchResources(currentTopic.id, user.id);
+
+      if (cancelled) return;
+
+      const latestResources = useStore
+        .getState()
+        .resources.filter((resource) => resource.entityId === currentTopic.id);
+
+      if (!hasQuizContent(currentTopic, latestResources)) {
+        setReviewMode('manual');
+        return;
+      }
+
+      if (!session?.access_token) {
+        setReviewMode('manual');
+        setQuizError('Unable to generate quiz. Rate manually instead.');
+        return;
+      }
+
+      setReviewMode('quiz');
+      setQuizLoading(true);
+
+      try {
+        const response = await fetch('/api/quiz/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            topicId: currentTopic.id,
+            accessToken: session.access_token,
+          }),
+        });
+
+        if (cancelled) return;
+
+        if (!response.ok) {
+          throw new Error('Quiz generation failed');
+        }
+
+        const data = (await response.json()) as { questions: QuizQuestion[] };
+        if (!data.questions?.length) {
+          throw new Error('No quiz questions returned');
+        }
+
+        setQuizQuestions(data.questions);
+      } catch {
+        if (cancelled) return;
+        setReviewMode('manual');
+        setQuizError('Could not generate quiz. Rate manually instead.');
+      } finally {
+        if (!cancelled) {
+          setQuizLoading(false);
+        }
+      }
+    };
+
+    void prepareReview();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [phase, currentTopic, user, session?.access_token, fetchResources, resetQuizState]);
 
   const handleRate = useCallback(
     (difficulty: Difficulty) => {
@@ -118,18 +213,18 @@ export function TodayPage() {
         downgrades: prev.downgrades + (isDowngrade ? 1 : 0),
       }));
 
-      setShowRating(false);
+      resetReviewState();
       if (currentIndex + 1 >= queue.length) {
         setPhase('complete');
       } else {
         setCurrentIndex((prev) => prev + 1);
       }
     },
-    [currentTopic, currentIndex, queue.length, submitReview, user],
+    [currentTopic, currentIndex, queue.length, submitReview, user, resetReviewState],
   );
 
   useEffect(() => {
-    if (phase !== 'review') return;
+    if (phase !== 'review' || reviewMode !== 'manual') return;
     const handler = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement)
         return;
@@ -149,7 +244,7 @@ export function TodayPage() {
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [phase, showRating, handleRate]);
+  }, [phase, reviewMode, showRating, handleRate]);
 
   const displayName =
     user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'there';
@@ -399,27 +494,59 @@ export function TodayPage() {
                 )}
               </div>
 
-              {!showRating ? (
-                <button
-                  type="button"
-                  onClick={() => setShowRating(true)}
-                  className="w-full rounded-lg bg-secondary py-3 text-sm font-medium text-secondary-foreground transition-colors hover:bg-accent"
-                >
-                  I&apos;m ready to rate ·{' '}
-                  <kbd className="font-mono text-xs opacity-60">Space</kbd>
-                </button>
-              ) : (
-                <div className="flex gap-2">
-                  {intervals &&
-                    (Object.keys(DIFFICULTY_CONFIG) as Difficulty[]).map((d) => (
-                      <RatingButton
-                        key={d}
-                        difficulty={d}
-                        intervalDays={intervals[d]}
-                        onSelect={() => handleRate(d)}
-                      />
-                    ))}
+              {reviewMode === 'quiz' && quizLoading && (
+                <div className="flex flex-col items-center gap-3 rounded-lg border border-border bg-secondary/30 px-4 py-8 text-center">
+                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                  <p className="text-sm font-medium text-foreground">Generating quiz…</p>
+                  <p className="text-xs text-muted-foreground">
+                    Building questions from your notes and resources
+                  </p>
                 </div>
+              )}
+
+              {reviewMode === 'quiz' && !quizLoading && quizQuestions && intervals && (
+                <QuizCard
+                  questions={quizQuestions}
+                  intervals={intervals}
+                  onConfirm={handleRate}
+                />
+              )}
+
+              {reviewMode === 'manual' && (
+                <>
+                  {quizError && (
+                    <p className="mb-4 rounded-lg border border-border bg-secondary/40 px-3 py-2 text-xs text-muted-foreground">
+                      {quizError}
+                    </p>
+                  )}
+                  {!hasQuizContent(currentTopic, topicResources) && (
+                    <p className="mb-4 text-xs text-muted-foreground">
+                      Add notes or resources to this topic to unlock AI quizzes.
+                    </p>
+                  )}
+                  {!showRating ? (
+                    <button
+                      type="button"
+                      onClick={() => setShowRating(true)}
+                      className="w-full rounded-lg bg-secondary py-3 text-sm font-medium text-secondary-foreground transition-colors hover:bg-accent"
+                    >
+                      I&apos;m ready to rate ·{' '}
+                      <kbd className="font-mono text-xs opacity-60">Space</kbd>
+                    </button>
+                  ) : (
+                    <div className="flex gap-2">
+                      {intervals &&
+                        (Object.keys(DIFFICULTY_CONFIG) as Difficulty[]).map((d) => (
+                          <RatingButton
+                            key={d}
+                            difficulty={d}
+                            intervalDays={intervals[d]}
+                            onSelect={() => handleRate(d)}
+                          />
+                        ))}
+                    </div>
+                  )}
+                </>
               )}
             </div>
         </div>

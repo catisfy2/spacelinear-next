@@ -57,3 +57,5 @@ export interface Resource {
   content?: string;
   createdAt: string;
 }
+
+export type { QuizQuestion, QuizResult } from '@/lib/quiz';

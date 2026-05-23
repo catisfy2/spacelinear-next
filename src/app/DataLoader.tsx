@@ -7,7 +7,7 @@ import { Loader2 } from "lucide-react";
 
 export function DataLoader({ children }: { children: ReactNode }) {
   const { user } = useAuth();
-  const { fetchAll, clear, loading } = useStore();
+  const { fetchAll, clear, loading, subjects, topics } = useStore();
   const prevUserId = useRef<string | null>(null);
 
   useEffect(() => {
@@ -20,7 +20,9 @@ export function DataLoader({ children }: { children: ReactNode }) {
     }
   }, [user, fetchAll, clear]);
 
-  if (user && loading) {
+  const isInitialLoad = subjects.length === 0 && topics.length === 0;
+
+  if (user && loading && isInitialLoad) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="w-6 h-6 animate-spin text-primary" />

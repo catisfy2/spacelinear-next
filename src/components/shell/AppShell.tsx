@@ -2,14 +2,20 @@
 
 import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
-import { Menu } from "lucide-react";
+import { Menu, Sparkles } from "lucide-react";
 import { Sidebar } from "./Sidebar";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-export function AppShell({ children }: { children: React.ReactNode }) {
+export function AppShell({
+  children,
+  onOpenCoach,
+}: {
+  children: React.ReactNode;
+  onOpenCoach?: () => void;
+}) {
   const pathname = usePathname();
   const isMobile = useIsMobile();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
@@ -20,7 +26,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex h-screen overflow-hidden">
-      {!isMobile && <Sidebar />}
+      {!isMobile && <Sidebar onOpenCoach={onOpenCoach} />}
       {isMobile && (
         <div className="absolute left-3 top-3 z-40 md:hidden">
           <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
@@ -40,7 +46,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               hideClose
               className="flex h-full w-auto max-w-none flex-col gap-0 overflow-hidden border-r bg-sidebar p-0 shadow-none sm:max-w-none"
             >
-              <Sidebar />
+              <Sidebar onOpenCoach={onOpenCoach} />
             </SheetContent>
           </Sheet>
         </div>
@@ -54,6 +60,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             {children}
           </div>
         </main>
+        <Button
+          type="button"
+          size="icon"
+          onClick={() => onOpenCoach?.()}
+          className={cn(
+            "fixed z-30 h-12 w-12 rounded-full shadow-lg",
+            isMobile ? "bottom-5 right-4" : "bottom-6 right-6",
+          )}
+          aria-label="Open study coach"
+        >
+          <Sparkles className="h-5 w-5" />
+        </Button>
       </div>
     </div>
   );

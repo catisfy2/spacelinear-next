@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { BarChart3, LayoutList, BookOpen, Plus, CalendarCheck, ChevronLeft, ChevronRight, Settings, Palette } from 'lucide-react';
+import { BarChart3, LayoutList, BookOpen, Plus, CalendarCheck, ChevronLeft, ChevronRight, Settings, Palette, Sparkles } from 'lucide-react';
 import { addDays, startOfDay, isBefore } from 'date-fns';
 import logoImg from '@/assets/icon-spacelinear.png';
 import { useStore } from '@/store/useStore';
@@ -15,7 +15,7 @@ import { CreateTopicModal } from '@/components/topics/CreateTopicModal';
 import { SidebarNavItem } from '@/components/shell/SidebarNavItem';
 import { applyThemeMode, getStoredThemeMode, subscribeSystemTheme, type ThemeMode } from '@/lib/theme';
 
-export function Sidebar() {
+export function Sidebar({ onOpenCoach }: { onOpenCoach?: () => void }) {
   const { topics, sidebarCollapsed, toggleSidebar, getDueTopics } = useStore();
   const { user } = useAuth();
   const pathname = usePathname();
@@ -99,6 +99,16 @@ export function Sidebar() {
             >
               <Plus className="h-4 w-4" />
             </button>
+            {onOpenCoach && (
+              <button
+                type="button"
+                onClick={onOpenCoach}
+                className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-primary"
+                aria-label="Open study coach"
+              >
+                <Sparkles className="h-4 w-4" />
+              </button>
+            )}
             <button
               type="button"
               onClick={toggleSidebar}
