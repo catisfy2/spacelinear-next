@@ -66,6 +66,8 @@ interface AppState {
   aiGenerationStatus: Record<string, "pending" | "done" | "failed">;
   startPollingAiContent: (topicId: string) => void;
   refreshTopicFromDb: (topicId: string) => Promise<void>;
+  scheduleTopicForToday: (topicId: string) => Promise<void>;
+  moveToBacklog: (topicId: string) => Promise<void>;
 }
 
 function mapResourceRow(row: any): Resource {
@@ -185,6 +187,9 @@ export const useStore = create<AppState>()((set, get) => ({
   },
 
   addTopic: async (data, userId) => {
+    const farFuture = new Date(
+      Date.now() + 365 * 24 * 60 * 60 * 1000,
+    ).toISOString();
     const { data: row, error } = await supabase
       .from("topics")
       .insert({
@@ -193,8 +198,8 @@ export const useStore = create<AppState>()((set, get) => ({
         notes: data.notes ?? null,
         subject_id: data.subjectId || null,
         tags: data.tags,
-        state: "new",
-        next_review_date: new Date().toISOString(),
+        state: "backlog",
+        next_review_date: farFuture,
         current_interval_days: 0,
         ease_factor: INITIAL_EASE,
         total_reviews: 0,
@@ -440,6 +445,44 @@ export const useStore = create<AppState>()((set, get) => ({
         topics: s.topics.map((t) => (t.id === topicId ? topic : t)),
       }));
     }
+  },
+
+  scheduleTopicForToday: async (topicId: string) => {
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    const iso = now.toISOString();
+
+    await supabase
+      .from("topics")
+      .update({ state: "new", next_review_date: iso })
+      .eq("id", topicId);
+
+    set((s) => ({
+      topics: s.topics.map((t) =>
+        t.id === topicId
+          ? { ...t, state: "new" as const, nextReviewDate: iso }
+          : t,
+      ),
+    }));
+  },
+
+  moveToBacklog: async (topicId: string) => {
+    const farFuture = new Date(
+      Date.now() + 365 * 24 * 60 * 60 * 1000,
+    ).toISOString();
+
+    await supabase
+      .from("topics")
+      .update({ state: "backlog", next_review_date: farFuture })
+      .eq("id", topicId);
+
+    set((s) => ({
+      topics: s.topics.map((t) =>
+        t.id === topicId
+          ? { ...t, state: "backlog" as const, nextReviewDate: farFuture }
+          : t,
+      ),
+    }));
   },
 }));
 

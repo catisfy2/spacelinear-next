@@ -1,4 +1,9 @@
-export type TopicState = "new" | "learning" | "reviewing" | "relearning";
+export type TopicState =
+  | "backlog"
+  | "new"
+  | "learning"
+  | "reviewing"
+  | "relearning";
 export type Difficulty = "relearn" | "hard" | "medium" | "easy";
 
 export interface Subject {

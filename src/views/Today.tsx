@@ -2,8 +2,18 @@
 
 import { useState, useMemo, useCallback } from "react";
 import Link from "next/link";
+import {
+  DndContext,
+  DragOverlay,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragStartEvent,
+  type DragEndEvent,
+} from "@dnd-kit/core";
 import { useStore } from "@/store/useStore";
 import { useAuth } from "@/hooks/useAuth";
+import { useIsMobile } from "@/hooks/use-mobile";
 import type {
   Difficulty,
   Topic,
@@ -17,8 +27,12 @@ import { CreateTopicModal } from "@/components/topics/CreateTopicModal";
 import { PageShell } from "@/components/app/PageShell";
 import { EmptyState } from "@/components/app/EmptyState";
 import { TopicDifficultyBadge } from "@/components/app/TopicDifficultyBadge";
-import { TopicStateBadge } from "@/components/app/TopicStateBadge";
-import { ReviewDialog } from "@/components/today";
+import {
+  ReviewDialog,
+  BacklogSidebar,
+  TodayDropZone,
+  TodayTopicItem,
+} from "@/components/today";
 import { getCalendarReviewStreak } from "@/lib/stats";
 import { cn } from "@/lib/utils";
 
@@ -91,11 +105,31 @@ function groupByDate(
 // ─── Today Page ─────────────────────────────────────────────────────────
 
 export function TodayPage() {
-  const { getDueTopics, submitReview, topics, subjects, reviewHistory } =
-    useStore();
+  const { submitReview, topics, subjects, reviewHistory } = useStore();
   const { user } = useAuth();
 
-  const dueTopics = useMemo(() => getDueTopics(), [getDueTopics, topics]);
+  const dueTopics = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    return topics
+      .filter((t) => {
+        if (t.state === "backlog") return false;
+        const d = new Date(t.nextReviewDate);
+        d.setHours(0, 0, 0, 0);
+        return d < tomorrow;
+      })
+      .sort((a, b) => {
+        const stateOrder: Record<string, number> = {
+          relearning: 0,
+          learning: 1,
+          new: 2,
+          reviewing: 3,
+        };
+        return (stateOrder[a.state] ?? 3) - (stateOrder[b.state] ?? 3);
+      });
+  }, [topics]);
   const calendarStreak = useMemo(
     () => getCalendarReviewStreak(reviewHistory),
     [reviewHistory],
@@ -161,205 +195,234 @@ export function TodayPage() {
     [historyGroups],
   );
 
+  // ── drag & drop ──
+  const isMobile = useIsMobile();
+  const [activeDragTopic, setActiveDragTopic] = useState<Topic | null>(null);
+  const { scheduleTopicForToday, moveToBacklog } = useStore();
+
+  // 200ms hold before drag for today items; immediate drag for backlog items (marked data-drag-immediate)
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        delay: 200,
+        tolerance: 5,
+      },
+      bypassActivationConstraint({ activeNode }) {
+        // Backlog sidebar items have data-drag-immediate → drag immediately
+        const el = activeNode?.node?.current;
+        return el?.hasAttribute("data-drag-immediate") === true;
+      },
+    }),
+  );
+
+  const backlogTopics = useMemo(
+    () => topics.filter((t) => t.state === "backlog"),
+    [topics],
+  );
+
+  const handleDragStart = useCallback((event: DragStartEvent) => {
+    const data = event.active.data.current as
+      | { topic: Topic; subject?: Subject }
+      | undefined;
+    if (data?.topic) {
+      setActiveDragTopic(data.topic);
+    }
+  }, []);
+
+  const handleDragEnd = useCallback(
+    (event: DragEndEvent) => {
+      setActiveDragTopic(null);
+      const { active, over } = event;
+      if (!over) return;
+
+      const topicId = active.id as string;
+      const sourceData = active.data.current as { topic: Topic } | undefined;
+      const sourceState = sourceData?.topic?.state;
+
+      if (over.id === "today-zone" && sourceState === "backlog") {
+        scheduleTopicForToday(topicId);
+      } else if (over.id === "backlog-zone" && sourceState === "new") {
+        moveToBacklog(topicId);
+      }
+    },
+    [scheduleTopicForToday, moveToBacklog],
+  );
+
+  const activeDragSubject = activeDragTopic
+    ? subjects.find((s) => s.id === activeDragTopic.subjectId)
+    : undefined;
+
   // ── empty state ──
   const hasDue = dueTopics.length > 0;
   const hasHistory = enrichedHistory.length > 0;
 
   return (
-    <PageShell maxWidth="narrow" className="pb-12">
-      {/* ── Header ── */}
-      <div className="flex items-start justify-between">
-        <div>
-          <p className="text-sm text-muted-foreground">{greetingLabel()}</p>
-          <h1 className="mt-0.5 text-2xl font-semibold tracking-tight text-foreground">
-            {displayName}
-          </h1>
-        </div>
-        {calendarStreak > 0 && (
-          <div className="flex items-center gap-1.5 rounded-full bg-sl-hard/10 px-3 py-1.5 text-sm font-medium text-sl-hard">
-            <Flame className="h-4 w-4" />
-            <span>{calendarStreak}d</span>
+    <DndContext
+      sensors={sensors}
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
+    >
+      <PageShell maxWidth="narrow" className="pb-12">
+        {/* ── Header ── */}
+        <div className="flex items-start justify-between">
+          <div>
+            <p className="text-sm text-muted-foreground">{greetingLabel()}</p>
+            <h1 className="mt-0.5 text-2xl font-semibold tracking-tight text-foreground">
+              {displayName}
+            </h1>
           </div>
-        )}
-      </div>
-
-      {/* ── Today section ── */}
-      <section className="mt-8">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-foreground">Today</h2>
-          <button
-            type="button"
-            onClick={() => setShowCreateTopic(true)}
-            className="flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
-          >
-            <Plus className="h-4 w-4" />
-            <span className="hidden sm:inline">Add topic</span>
-          </button>
+          {calendarStreak > 0 && (
+            <div className="flex items-center gap-1.5 rounded-full bg-sl-hard/10 px-3 py-1.5 text-sm font-medium text-sl-hard">
+              <Flame className="h-4 w-4" />
+              <span>{calendarStreak}d</span>
+            </div>
+          )}
         </div>
 
-        {hasDue ? (
-          <ul className="mt-3">
-            {dueTopics.map((topic) => {
-              const sub = subjects.find((s) => s.id === topic.subjectId);
-              const isReviewed = reviewedIds.has(topic.id);
-              return (
-                <li
-                  key={topic.id}
-                  className={cn(
-                    "flex items-center gap-3 rounded-lg px-4 py-3 transition-colors",
-                    isReviewed ? "opacity-40" : "hover:bg-accent/40",
-                  )}
-                >
-                  {/* colored bullet */}
-                  <span
-                    className={cn(
-                      "h-2.5 w-2.5 shrink-0 rounded-full",
-                      bulletColor(topic),
-                    )}
-                    aria-hidden
-                  />
-
-                  {/* topic info — tap to navigate */}
-                  <Link
-                    href={`/topics/${topic.id}`}
-                    className={cn(
-                      "min-w-0 flex-1",
-                      isReviewed ? "pointer-events-none" : "",
-                    )}
-                  >
-                    <p
-                      className={cn(
-                        "truncate text-sm font-semibold",
-                        isReviewed
-                          ? "text-muted-foreground line-through"
-                          : "text-foreground",
-                      )}
-                    >
-                      {topic.title}
-                    </p>
-                    {sub && (
-                      <p className="mt-0.5 truncate text-xs text-foreground/70">
-                        {sub.icon} {sub.name}
-                      </p>
-                    )}
-                  </Link>
-
-                  {/* topic state badge (for non-new topics) */}
-                  {topic.state !== "new" && !isReviewed && (
-                    <div className="hidden shrink-0 sm:block">
-                      <TopicStateBadge state={topic.state} />
-                    </div>
-                  )}
-
-                  {/* difficulty badge (for reviewed topics) */}
-                  {topic.currentDifficulty && !isReviewed && (
-                    <div className="hidden shrink-0 sm:block">
-                      <TopicDifficultyBadge
-                        difficulty={topic.currentDifficulty}
-                      />
-                    </div>
-                  )}
-
-                  {/* ◯ button — opens review dialog */}
-                  <button
-                    type="button"
-                    onClick={() => openDialog(topic)}
-                    disabled={isReviewed}
-                    className={cn(
-                      "flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-xs transition-colors",
-                      isReviewed
-                        ? "border-muted text-muted-foreground/30 cursor-not-allowed"
-                        : "border-border text-muted-foreground hover:border-foreground hover:text-foreground",
-                    )}
-                    aria-label={`Review ${topic.title}`}
-                  >
-                    ◯
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        ) : (
-          <div className="mt-3">
-            <EmptyState
-              icon="🎉"
-              title="All caught up!"
-              description="No topics due today. Take a break or add new material."
-              primaryAction={
-                <Button onClick={() => setShowCreateTopic(true)}>
-                  Add topic
-                </Button>
-              }
-            />
+        {/* ── Today section ── */}
+        <section className="mt-8">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-foreground">Today</h2>
+            <button
+              type="button"
+              onClick={() => setShowCreateTopic(true)}
+              className="flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
+            >
+              <Plus className="h-4 w-4" />
+              <span className="hidden sm:inline">Add topic</span>
+            </button>
           </div>
-        )}
-      </section>
 
-      {/* ── Past Commits section ── */}
-      {hasHistory && (
-        <section className="mt-10">
-          <h2 className="text-lg font-semibold text-foreground">
-            Past Commits
-          </h2>
-
-          <div className="mt-3 space-y-6">
-            {sortedGroups.map(([dateLabel, items]) => (
-              <div key={dateLabel}>
-                <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  {dateLabel}
-                </p>
-                <ul>
-                  {items.map(({ entry, topic, subject }) => (
-                    <li
-                      key={entry.id}
-                      className="rounded-lg px-4 py-3 transition-colors hover:bg-accent/30"
-                    >
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="min-w-0 flex-1">
-                          <Link
-                            href={`/topics/${topic.id}`}
-                            className="truncate text-sm font-semibold text-foreground hover:text-primary"
-                          >
-                            {topic.title}
-                          </Link>
-                          {subject && (
-                            <p className="mt-0.5 truncate text-xs text-foreground/70">
-                              {subject.icon} {subject.name}
-                            </p>
-                          )}
-                        </div>
-                        <TopicDifficultyBadge
-                          difficulty={entry.difficultySelected}
-                          className="shrink-0"
-                        />
-                      </div>
-                      {entry.commitMessage && (
-                        <p className="mt-1.5 text-sm italic text-foreground/70">
-                          &ldquo;{entry.commitMessage}&rdquo;
-                        </p>
-                      )}
-                    </li>
-                  ))}
-                </ul>
+          <TodayDropZone>
+            {hasDue ? (
+              <ul className="mt-3">
+                {dueTopics.map((topic) => {
+                  const sub = subjects.find((s) => s.id === topic.subjectId);
+                  const isReviewed = reviewedIds.has(topic.id);
+                  return (
+                    <TodayTopicItem
+                      key={topic.id}
+                      topic={topic}
+                      subject={sub}
+                      isReviewed={isReviewed}
+                      onReview={openDialog}
+                    />
+                  );
+                })}
+              </ul>
+            ) : (
+              <div className="mt-3">
+                <EmptyState
+                  icon="🎉"
+                  title="All caught up!"
+                  description="No topics due today. Take a break or add new material."
+                  primaryAction={
+                    <Button onClick={() => setShowCreateTopic(true)}>
+                      Add topic
+                    </Button>
+                  }
+                />
               </div>
-            ))}
-          </div>
+            )}
+          </TodayDropZone>
         </section>
+
+        {/* ── Past Commits section ── */}
+        {hasHistory && (
+          <section className="mt-10">
+            <h2 className="text-lg font-semibold text-foreground">
+              Past Commits
+            </h2>
+
+            <div className="mt-3 space-y-6">
+              {sortedGroups.map(([dateLabel, items]) => (
+                <div key={dateLabel}>
+                  <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    {dateLabel}
+                  </p>
+                  <ul>
+                    {items.map(({ entry, topic, subject }) => (
+                      <li
+                        key={entry.id}
+                        className="rounded-lg px-4 py-3 transition-colors hover:bg-accent/30"
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="min-w-0 flex-1">
+                            <Link
+                              href={`/topics/${topic.id}`}
+                              className="truncate text-sm font-semibold text-foreground hover:text-primary"
+                            >
+                              {topic.title}
+                            </Link>
+                            {subject && (
+                              <p className="mt-0.5 truncate text-xs text-foreground/70">
+                                {subject.icon} {subject.name}
+                              </p>
+                            )}
+                          </div>
+                          <TopicDifficultyBadge
+                            difficulty={entry.difficultySelected}
+                            className="shrink-0"
+                          />
+                        </div>
+                        {entry.commitMessage && (
+                          <p className="mt-1.5 text-sm italic text-foreground/70">
+                            &ldquo;{entry.commitMessage}&rdquo;
+                          </p>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* ── Dialogs ── */}
+        {dialogTopic && (
+          <ReviewDialog
+            topic={dialogTopic}
+            subject={dialogSubject}
+            open={!!dialogTopic}
+            onClose={closeDialog}
+            onCommit={handleCommit}
+          />
+        )}
+        {showCreateTopic && (
+          <CreateTopicModal onClose={() => setShowCreateTopic(false)} />
+        )}
+      </PageShell>
+
+      {/* ── Backlog sidebar (desktop only) ── */}
+      {!isMobile && (
+        <BacklogSidebar topics={backlogTopics} subjects={subjects} />
       )}
 
-      {/* ── Dialogs ── */}
-      {dialogTopic && (
-        <ReviewDialog
-          topic={dialogTopic}
-          subject={dialogSubject}
-          open={!!dialogTopic}
-          onClose={closeDialog}
-          onCommit={handleCommit}
-        />
-      )}
-      {showCreateTopic && (
-        <CreateTopicModal onClose={() => setShowCreateTopic(false)} />
-      )}
-    </PageShell>
+      {/* ── Drag overlay preview ── */}
+      <DragOverlay dropAnimation={null}>
+        {activeDragTopic ? (
+          <div className="flex items-center gap-3 rounded-lg bg-card px-3 py-2.5 shadow-xl ring-1 ring-border">
+            <span
+              className={cn(
+                "h-2 w-2 shrink-0 rounded-full",
+                bulletColor(activeDragTopic),
+              )}
+              aria-hidden
+            />
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-medium text-foreground">
+                {activeDragTopic.title}
+              </p>
+              {activeDragSubject && (
+                <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                  {activeDragSubject.icon} {activeDragSubject.name}
+                </p>
+              )}
+            </div>
+          </div>
+        ) : null}
+      </DragOverlay>
+    </DndContext>
   );
 }
