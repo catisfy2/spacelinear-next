@@ -13,6 +13,8 @@ import {
   ChevronRight,
   Settings,
   Palette,
+  FileText,
+  StickyNote,
 } from "lucide-react";
 
 import logoImg from "@/assets/icon-spacelinear.png";
@@ -23,6 +25,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { CreateTopicModal } from "@/components/topics/CreateTopicModal";
 import { SidebarNavItem } from "@/components/shell/SidebarNavItem";
+import { SidebarChatDropdown } from "@/components/chat/SidebarChatDropdown";
 import {
   applyThemeMode,
   getStoredThemeMode,
@@ -149,6 +152,36 @@ export function Sidebar() {
               icon={BarChart3}
               collapsed={sidebarCollapsed}
               isActive={pathname === "/pulse"}
+            />
+          </nav>
+
+          <nav className="flex flex-col gap-0.5 mt-2">
+            <SidebarChatDropdown
+              collapsed={sidebarCollapsed}
+              isActive={
+                pathname === "/chat" ||
+                (pathname?.startsWith("/chat/") ?? false)
+              }
+            />
+            <SidebarNavItem
+              href="/materials"
+              label="Materials"
+              icon={FileText}
+              collapsed={sidebarCollapsed}
+              isActive={
+                pathname === "/materials" ||
+                (pathname?.startsWith("/materials/") ?? false)
+              }
+            />
+            <SidebarNavItem
+              href="/notes"
+              label="Notes"
+              icon={StickyNote}
+              collapsed={sidebarCollapsed}
+              isActive={
+                pathname === "/notes" ||
+                (pathname?.startsWith("/notes/") ?? false)
+              }
             />
           </nav>
         </div>
