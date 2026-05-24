@@ -1,14 +1,19 @@
-import { type Topic, type Difficulty, type ReviewResult, type ReviewHistoryEntry } from './types';
+import {
+  type Topic,
+  type Difficulty,
+  type ReviewResult,
+  type ReviewHistoryEntry,
+} from "./types";
 
 export type TopicAlgorithmState = {
-  state: Topic['state'];
+  state: Topic["state"];
   correct_reviews: number;
   current_interval_days: number;
   ease_factor: number;
 };
 
 export type AlgorithmResult = {
-  state: Topic['state'];
+  state: Topic["state"];
   correct_reviews: number;
   current_interval_days: number;
   ease_factor: number;
@@ -50,9 +55,9 @@ const GROWTH_RATES: Record<string, number> = {
  */
 function calculateLinearIntervals(
   attemptNumber: number,
-  lastClicked: Difficulty | undefined
+  lastClicked: Difficulty | undefined,
 ): Record<Difficulty, number> {
-  if (attemptNumber === 0 || !lastClicked || lastClicked === 'relearn') {
+  if (attemptNumber === 0 || !lastClicked || lastClicked === "relearn") {
     return { ...BASE_INTERVALS };
   }
 
@@ -90,13 +95,13 @@ function addDays(date: Date, days: number): Date {
 function calculateLearningPhase(
   topic: TopicAlgorithmState,
   rating: Difficulty,
-  now: Date
+  now: Date,
 ): AlgorithmResult {
   const newEase = clampEase(topic.ease_factor + EASE_ADJUSTMENTS[rating]);
-  const activeState: Topic['state'] =
-    topic.state === 'new' ? 'learning' : topic.state;
+  const activeState: Topic["state"] =
+    topic.state === "new" ? "learning" : topic.state;
 
-  if (rating === 'relearn') {
+  if (rating === "relearn") {
     return {
       state: activeState,
       correct_reviews: 0,
@@ -106,10 +111,10 @@ function calculateLearningPhase(
     };
   }
 
-  if (rating === 'hard') {
+  if (rating === "hard") {
     const stepIndex = Math.min(
       Math.max(0, topic.correct_reviews - 1),
-      LEARNING_STEPS.length - 1
+      LEARNING_STEPS.length - 1,
     );
     const interval = LEARNING_STEPS[stepIndex];
     return {
@@ -124,7 +129,7 @@ function calculateLearningPhase(
   // medium or easy — check if graduating first
   if (topic.correct_reviews >= LEARNING_STEPS.length) {
     return {
-      state: 'reviewing',
+      state: "reviewing",
       correct_reviews: topic.correct_reviews + 1,
       current_interval_days: GRADUATING_INTERVAL,
       ease_factor: newEase,
@@ -145,13 +150,13 @@ function calculateLearningPhase(
 function calculateReviewPhase(
   topic: TopicAlgorithmState,
   rating: Difficulty,
-  now: Date
+  now: Date,
 ): AlgorithmResult {
   const newEase = clampEase(topic.ease_factor + EASE_ADJUSTMENTS[rating]);
 
-  if (rating === 'relearn') {
+  if (rating === "relearn") {
     return {
-      state: 'relearning',
+      state: "relearning",
       correct_reviews: 0,
       current_interval_days: 0,
       ease_factor: newEase,
@@ -161,19 +166,25 @@ function calculateReviewPhase(
 
   let interval: number;
   switch (rating) {
-    case 'easy':
-      interval = Math.max(1, Math.round(topic.current_interval_days * topic.ease_factor * 1.3));
+    case "easy":
+      interval = Math.max(
+        1,
+        Math.round(topic.current_interval_days * topic.ease_factor * 1.3),
+      );
       break;
-    case 'medium':
-      interval = Math.max(1, Math.round(topic.current_interval_days * topic.ease_factor));
+    case "medium":
+      interval = Math.max(
+        1,
+        Math.round(topic.current_interval_days * topic.ease_factor),
+      );
       break;
-    case 'hard':
+    case "hard":
       interval = Math.max(1, Math.round(topic.current_interval_days * 1.2));
       break;
   }
 
   return {
-    state: 'reviewing',
+    state: "reviewing",
     correct_reviews: topic.correct_reviews,
     current_interval_days: interval,
     ease_factor: newEase,
@@ -184,9 +195,13 @@ function calculateReviewPhase(
 export function calculateNextReview(
   topic: TopicAlgorithmState,
   rating: Difficulty,
-  now: Date = new Date()
+  now: Date = new Date(),
 ): AlgorithmResult {
-  if (topic.state === 'new' || topic.state === 'learning' || topic.state === 'relearning') {
+  if (
+    topic.state === "new" ||
+    topic.state === "learning" ||
+    topic.state === "relearning"
+  ) {
     return calculateLearningPhase(topic, rating, now);
   }
   return calculateReviewPhase(topic, rating, now);
@@ -207,12 +222,19 @@ export function previewIntervals(topic: Topic): Record<Difficulty, number> {
   return calculateLinearIntervals(topic.totalReviews, topic.currentDifficulty);
 }
 
-export function processReview(topic: Topic, difficulty: Difficulty): ReviewResult {
+export function processReview(
+  topic: Topic,
+  difficulty: Difficulty,
+  commitMessage?: string,
+): ReviewResult {
   const now = new Date();
   const result = calculateNextReview(toAlgoState(topic), difficulty, now);
 
   // Use linear intervals for scheduling
-  const intervals = calculateLinearIntervals(topic.totalReviews, topic.currentDifficulty);
+  const intervals = calculateLinearIntervals(
+    topic.totalReviews,
+    topic.currentDifficulty,
+  );
   const selectedInterval = intervals[difficulty];
 
   const updatedTopic: Topic = {
@@ -222,9 +244,10 @@ export function processReview(topic: Topic, difficulty: Difficulty): ReviewResul
     nextReviewDate: addDays(now, selectedInterval).toISOString(),
     currentIntervalDays: selectedInterval,
     easeFactor: result.ease_factor,
-    totalReviews: difficulty === 'relearn' ? 0 : topic.totalReviews + 1,
+    totalReviews: difficulty === "relearn" ? 0 : topic.totalReviews + 1,
     correctReviews: result.correct_reviews,
-    streak: difficulty === 'relearn' || difficulty === 'hard' ? 0 : topic.streak + 1,
+    streak:
+      difficulty === "relearn" || difficulty === "hard" ? 0 : topic.streak + 1,
     firstReviewedAt: topic.firstReviewedAt || now.toISOString(),
     lastReviewedAt: now.toISOString(),
   };
@@ -239,6 +262,7 @@ export function processReview(topic: Topic, difficulty: Difficulty): ReviewResul
     intervalAfterDays: selectedInterval,
     easeFactor: result.ease_factor,
     reviewNumber: topic.totalReviews + 1,
+    commitMessage,
   };
 
   return { updatedTopic, historyEntry };

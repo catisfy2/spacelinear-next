@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { usePathname } from "next/navigation";
 import { Menu, Sparkles } from "lucide-react";
 import { Sidebar } from "./Sidebar";
@@ -8,6 +8,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { CreateTopicModal } from "@/components/topics/CreateTopicModal";
 
 export function AppShell({
   children,
@@ -19,10 +20,33 @@ export function AppShell({
   const pathname = usePathname();
   const isMobile = useIsMobile();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [showCreateTopic, setShowCreateTopic] = useState(false);
 
   useEffect(() => {
     setMobileNavOpen(false);
   }, [pathname]);
+
+  // Global shortcut: Ctrl+Shift+O to open the Create Topic dialog
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    if (e.ctrlKey && e.shiftKey && e.code === "KeyO") {
+      // Don't trigger if the user is typing in an input/textarea/contenteditable
+      const tag = e.target instanceof HTMLElement ? e.target.tagName : null;
+      if (
+        tag === "INPUT" ||
+        tag === "TEXTAREA" ||
+        (e.target as HTMLElement)?.isContentEditable
+      ) {
+        return;
+      }
+      e.preventDefault();
+      setShowCreateTopic(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [handleKeyDown]);
 
   return (
     <div className="flex h-screen overflow-hidden">
@@ -55,7 +79,10 @@ export function AppShell({
         <main className="relative h-full flex-1 overflow-hidden">
           <div
             key={pathname}
-            className={cn("absolute inset-0 overflow-y-auto", isMobile && "pt-14")}
+            className={cn(
+              "absolute inset-0 overflow-y-auto",
+              isMobile && "pt-14",
+            )}
           >
             {children}
           </div>
@@ -73,6 +100,10 @@ export function AppShell({
           <Sparkles className="h-5 w-5" />
         </Button>
       </div>
+
+      {showCreateTopic && (
+        <CreateTopicModal onClose={() => setShowCreateTopic(false)} />
+      )}
     </div>
   );
 }

@@ -1,45 +1,46 @@
 "use client";
 
-import { useState, useMemo, useEffect } from 'react';
-import { useStore } from '@/store/useStore';
-import type { TopicState, Subject } from '@/lib/types';
-import { Plus, Search } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { CreateTopicModal } from '@/components/topics/CreateTopicModal';
-import { CreateSubjectModal } from '@/components/subjects/CreateSubjectModal';
-import { useSearchParams } from 'next/navigation';
-import { Input } from '@/components/ui/input';
+import { useState, useMemo, useEffect } from "react";
+import { useStore } from "@/store/useStore";
+import type { TopicState, Subject } from "@/lib/types";
+import { Plus, Search } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { CreateTopicModal } from "@/components/topics/CreateTopicModal";
+import { CreateSubjectModal } from "@/components/subjects/CreateSubjectModal";
+import { useSearchParams } from "next/navigation";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select';
-import { PageHeader } from '@/components/app/PageHeader';
-import { PageShell } from '@/components/app/PageShell';
-import { EmptyState } from '@/components/app/EmptyState';
-import { TopicRow } from '@/components/app/TopicRow';
-import { Button } from '@/components/ui/button';
+} from "@/components/ui/select";
+import { PageHeader } from "@/components/app/PageHeader";
+import { PageShell } from "@/components/app/PageShell";
+import { EmptyState } from "@/components/app/EmptyState";
+import { TopicRow } from "@/components/app/TopicRow";
+import { Button } from "@/components/ui/button";
 
 /** Preserve the previous grouped view order when flattening the list. */
 const STATE_RANK: Record<TopicState, number> = {
+  backlog: 4,
   relearning: 0,
   learning: 1,
   new: 2,
   reviewing: 3,
 };
 
-type StateFilter = 'all' | 'due' | 'backlog' | TopicState;
+type StateFilter = "all" | "due" | "backlog" | TopicState;
 
 const FILTER_CHIPS: { id: StateFilter; label: string }[] = [
-  { id: 'all', label: 'All' },
-  { id: 'due', label: 'Due' },
-  { id: 'new', label: 'New' },
-  { id: 'learning', label: 'Learning' },
-  { id: 'reviewing', label: 'Reviewing' },
-  { id: 'relearning', label: 'Relearning' },
-  { id: 'backlog', label: 'Backlog' },
+  { id: "all", label: "All" },
+  { id: "due", label: "Due" },
+  { id: "new", label: "New" },
+  { id: "learning", label: "Learning" },
+  { id: "reviewing", label: "Reviewing" },
+  { id: "relearning", label: "Relearning" },
+  { id: "backlog", label: "Backlog" },
 ];
 
 export function TopicsPage() {
@@ -47,33 +48,36 @@ export function TopicsPage() {
   const [showCreateTopic, setShowCreateTopic] = useState(false);
   const [showCreateSubject, setShowCreateSubject] = useState(false);
   const searchParams = useSearchParams();
-  const [filterSubjectId, setFilterSubjectId] = useState<string>('all');
-  const [stateFilter, setStateFilter] = useState<StateFilter>('all');
-  const [search, setSearch] = useState('');
+  const [filterSubjectId, setFilterSubjectId] = useState<string>("all");
+  const [stateFilter, setStateFilter] = useState<StateFilter>("all");
+  const [search, setSearch] = useState("");
 
   useEffect(() => {
-    if (searchParams.get('create-subject') === 'true') {
+    if (searchParams.get("create-subject") === "true") {
       setShowCreateSubject(true);
     }
   }, [searchParams]);
 
-  const dueIdSet = useMemo(() => new Set(getDueTopics().map((t) => t.id)), [getDueTopics, topics]);
+  const dueIdSet = useMemo(
+    () => new Set(getDueTopics().map((t) => t.id)),
+    [getDueTopics, topics],
+  );
 
   const filteredTopics = useMemo(() => {
     const q = search.trim().toLowerCase();
     let result = topics;
 
-    if (filterSubjectId !== 'all') {
+    if (filterSubjectId !== "all") {
       result = result.filter((t) => t.subjectId === filterSubjectId);
     }
 
-    if (stateFilter === 'due') {
+    if (stateFilter === "due") {
       result = result.filter((t) => dueIdSet.has(t.id));
-    } else if (stateFilter === 'backlog') {
+    } else if (stateFilter === "backlog") {
       const cutoff = new Date();
       cutoff.setDate(cutoff.getDate() + 30);
       result = result.filter((t) => new Date(t.nextReviewDate) > cutoff);
-    } else if (stateFilter !== 'all') {
+    } else if (stateFilter !== "all") {
       result = result.filter((t) => t.state === stateFilter);
     }
 
@@ -114,7 +118,11 @@ export function TopicsPage() {
                 >
                   <Plus className="mr-1.5 h-3.5 w-3.5" /> Subject
                 </Button>
-                <Button size="sm" className="rounded-lg" onClick={() => setShowCreateTopic(true)}>
+                <Button
+                  size="sm"
+                  className="rounded-lg"
+                  onClick={() => setShowCreateTopic(true)}
+                >
                   <Plus className="mr-1.5 h-3.5 w-3.5" /> Topic
                 </Button>
               </>
@@ -155,10 +163,10 @@ export function TopicsPage() {
                 type="button"
                 onClick={() => setStateFilter(chip.id)}
                 className={cn(
-                  'rounded-lg px-3 py-1.5 text-xs font-medium transition-colors',
+                  "rounded-lg px-3 py-1.5 text-xs font-medium transition-colors",
                   stateFilter === chip.id
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-muted text-muted-foreground hover:bg-accent hover:text-foreground',
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-muted text-muted-foreground hover:bg-accent hover:text-foreground",
                 )}
               >
                 {chip.label}
@@ -188,9 +196,9 @@ export function TopicsPage() {
               <Button
                 variant="outline"
                 onClick={() => {
-                  setSearch('');
-                  setStateFilter('all');
-                  setFilterSubjectId('all');
+                  setSearch("");
+                  setStateFilter("all");
+                  setFilterSubjectId("all");
                 }}
               >
                 Clear filters
@@ -207,8 +215,12 @@ export function TopicsPage() {
         )}
       </PageShell>
 
-      {showCreateTopic && <CreateTopicModal onClose={() => setShowCreateTopic(false)} />}
-      {showCreateSubject && <CreateSubjectModal onClose={() => setShowCreateSubject(false)} />}
+      {showCreateTopic && (
+        <CreateTopicModal onClose={() => setShowCreateTopic(false)} />
+      )}
+      {showCreateSubject && (
+        <CreateSubjectModal onClose={() => setShowCreateSubject(false)} />
+      )}
     </>
   );
 }

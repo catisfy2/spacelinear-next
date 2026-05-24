@@ -1,5 +1,10 @@
-export type TopicState = 'new' | 'learning' | 'reviewing' | 'relearning';
-export type Difficulty = 'relearn' | 'hard' | 'medium' | 'easy';
+export type TopicState =
+  | "backlog"
+  | "new"
+  | "learning"
+  | "reviewing"
+  | "relearning";
+export type Difficulty = "relearn" | "hard" | "medium" | "easy";
 
 export interface Subject {
   id: string;
@@ -40,6 +45,7 @@ export interface ReviewHistoryEntry {
   intervalAfterDays: number;
   easeFactor: number;
   reviewNumber: number;
+  commitMessage?: string;
 }
 
 export interface ReviewResult {
@@ -50,8 +56,8 @@ export interface ReviewResult {
 export interface Resource {
   id: string;
   entityId: string;
-  entityType: 'topic' | 'subject';
-  type: 'link' | 'file' | 'note_doc';
+  entityType: "topic" | "subject";
+  type: "link" | "file" | "note_doc";
   title: string;
   url?: string;
   content?: string;
