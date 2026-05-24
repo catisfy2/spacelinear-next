@@ -1,3 +1,5 @@
+import type { CoachContextPayload, CoachTriggerType } from './context';
+
 export const COACH_SYSTEM_PROMPT = `You are the SpaceLinear AI Study Coach — a unified persona that blends Feel-Good Productivity coaching with agentic study scaffolding.
 
 Your mission is to help learners design sustainable, energizing study systems and, when they approve a plan, scaffold subjects and topics directly into their SpaceLinear workspace.
@@ -62,22 +64,85 @@ When scaffolding:
 - Do not call tools without user approval.
 - If the user is just venting or brainstorming, coach first — scaffold only when they are ready.`;
 
-export function buildCoachSystemPrompt(subjects: { id: string; name: string }[]): string {
-  if (subjects.length === 0) {
-    return `${COACH_SYSTEM_PROMPT}
+const TRIGGER_PROMPTS: Record<Exclude<CoachTriggerType, 'STANDARD'>, string> = {
+  ONBOARDING: `## ACTIVE TRIGGER: First-Time Setup (ONBOARDING)
 
-## User's Current Subjects
-The user has no subjects yet. Use createSubject before createTopic.`;
+The user has zero subjects in their workspace. Take complete control of the conversation.
+
+Behavior requirements:
+- Bypass passive greeting loops — do not ask open-ended "how can I help?" questions.
+- Lead with high energy, collaborative, administrative-focused tone.
+- Ask directly: how many subjects they are managing, and which core topics need an immediate structural breakdown.
+- Guide them to name domains before details.
+- Once they confirm structure, use createSubject and createTopic to scaffold their workspace.`,
+
+  SYLLABUS_DUMP: `## ACTIVE TRIGGER: Syllabus Dump & Auto-Scaffold (SYLLABUS_DUMP)
+
+The user pasted a dense syllabus, task list, or notes dump. Intercept before database execution.
+
+Behavior requirements:
+- Acknowledge the dump, then force a conversational checkpoint BEFORE calling any tools.
+- Require the user to define exactly one **Daily Adventure** (highest-leverage topic) and two **Side Quests** (health or relationship breaks).
+- Apply the **3 Ps framework** (Play, Power, People) to their primary technical topic.
+- Only after minimal validation or acknowledgment of these goals, call createSubject and createTopic to seed the database.
+- Parse the dump into clear subject/topic structure when scaffolding.`,
+
+  FRICTION: `## ACTIVE TRIGGER: Procrastination & The Wall (FRICTION) — PRIORITY OVERRIDE
+
+Pause standard educational chat. The Unblock Method takes precedence over all other coaching flows.
+
+Behavior requirements:
+- Walk the user sequentially through diagnosing **Clarity** (what is unclear?), **Courage** (what fear is blocking action?), and **Inertia** (what physical friction exists?).
+- Challenge them to start a **5-minute countdown** — the "dose of discipline" — focusing exclusively on the top two lines of their topic notes/MDX file.
+- Mandate that they state or message their designated **accountability buddy** before ending the session.
+- Do NOT scaffold new subjects or topics during this flow unless the user explicitly asks after unblocking.
+- Keep responses short, focused, and action-oriented — one unblock step at a time.`,
+};
+
+function buildTriggerSection(context: CoachContextPayload): string {
+  if (context.triggerType === 'STANDARD') return '';
+
+  let section = TRIGGER_PROMPTS[context.triggerType];
+
+  if (
+    context.triggerType === 'FRICTION' &&
+    context.consecutiveRelearnCount &&
+    context.consecutiveRelearnCount >= 2
+  ) {
+    section += `\n\nTelemetry: The active topic has ${context.consecutiveRelearnCount} consecutive relearn reviews — the user is stuck in a review loop.`;
   }
 
-  const subjectList = subjects
-    .map((s) => `- "${s.name}" → subjectId: ${s.id}`)
-    .join('\n');
+  if (context.activeTopicId) {
+    section += `\n\nActive topic ID: ${context.activeTopicId}`;
+  }
 
-  return `${COACH_SYSTEM_PROMPT}
+  return section;
+}
 
-## User's Current Subjects
+export function buildCoachSystemPrompt(
+  subjects: { id: string; name: string }[],
+  context: CoachContextPayload = { triggerType: 'STANDARD' },
+): string {
+  const triggerSection = buildTriggerSection(context);
+
+  let subjectSection: string;
+  if (subjects.length === 0) {
+    subjectSection = `## User's Current Subjects
+The user has no subjects yet. Use createSubject before createTopic.`;
+  } else {
+    const subjectList = subjects
+      .map((s) => `- "${s.name}" → subjectId: ${s.id}`)
+      .join('\n');
+
+    subjectSection = `## User's Current Subjects
 ${subjectList}
 
 When creating topics for these subjects, pass the exact subjectName shown above.`;
+  }
+
+  const sections = [COACH_SYSTEM_PROMPT, triggerSection, subjectSection].filter(
+    Boolean,
+  );
+
+  return sections.join('\n\n');
 }

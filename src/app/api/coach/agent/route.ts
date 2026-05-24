@@ -8,6 +8,7 @@ import {
   type UIMessage,
 } from 'ai';
 import { z } from 'zod';
+import type { CoachContextPayload } from '@/lib/coach/context';
 import { buildCoachSystemPrompt } from '@/lib/coach/system-prompt';
 import { INITIAL_EASE } from '@/lib/algorithm';
 
@@ -62,9 +63,18 @@ async function resolveSubjectId(
 }
 
 export async function POST(req: Request) {
-  const { messages, accessToken } = (await req.json()) as {
+  const {
+    messages,
+    accessToken,
+    triggerType = 'STANDARD',
+    activeTopicId,
+    consecutiveRelearnCount,
+  } = (await req.json()) as {
     messages: UIMessage[];
     accessToken?: string;
+    triggerType?: CoachContextPayload['triggerType'];
+    activeTopicId?: string;
+    consecutiveRelearnCount?: number;
   };
 
   if (!accessToken) {
@@ -93,9 +103,20 @@ export async function POST(req: Request) {
 
   const existingSubjects = await fetchUserSubjects(authClient, user.id);
 
+  const resolvedTriggerType =
+    existingSubjects.length === 0 && triggerType === 'STANDARD'
+      ? 'ONBOARDING'
+      : triggerType;
+
+  const coachContext: CoachContextPayload = {
+    triggerType: resolvedTriggerType,
+    activeTopicId,
+    consecutiveRelearnCount,
+  };
+
   const result = streamText({
     model: groq('llama-3.3-70b-versatile'),
-    system: buildCoachSystemPrompt(existingSubjects),
+    system: buildCoachSystemPrompt(existingSubjects, coachContext),
     messages: await convertToModelMessages(messages),
     stopWhen: stepCountIs(8),
     tools: {

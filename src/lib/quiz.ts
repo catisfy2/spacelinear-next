@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { extractNotesText } from '@/lib/topicCanvas';
 import type { Difficulty, Resource, Topic } from '@/lib/types';
 
 export interface QuizQuestion {
@@ -73,8 +74,11 @@ export function normalizeQuizQuestions(
     .filter((question) => question.options.length >= 2);
 }
 
-export function hasQuizContent(topic: Topic, topicResources: Resource[]): boolean {
-  const hasNotes = Boolean(topic.notes?.trim());
+export function hasQuizContent(
+  topic: Pick<Topic, 'notes'>,
+  topicResources: Resource[],
+): boolean {
+  const hasNotes = Boolean(extractNotesText(topic.notes));
   const hasResources = topicResources.length > 0;
   return hasNotes || hasResources;
 }
@@ -89,8 +93,9 @@ export function buildQuizContext(
     sections.push(`Description:\n${topic.description.trim()}`);
   }
 
-  if (topic.notes?.trim()) {
-    sections.push(`Notes:\n${topic.notes.trim()}`);
+  const notesText = extractNotesText(topic.notes);
+  if (notesText) {
+    sections.push(`Notes:\n${notesText}`);
   }
 
   if (resources.length > 0) {

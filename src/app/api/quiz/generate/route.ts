@@ -6,6 +6,7 @@ import {
   normalizeQuizQuestions,
   quizGenerationSchema,
 } from '@/lib/quiz';
+import { extractNotesText } from '@/lib/topicCanvas';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -58,7 +59,7 @@ export async function POST(req: Request) {
     .eq('entity_type', 'topic')
     .eq('user_id', user.id);
 
-  const hasNotes = Boolean(topic.notes?.trim());
+  const hasNotes = Boolean(extractNotesText(topic.notes));
   const hasResources = (resources ?? []).length > 0;
 
   if (!hasNotes && !hasResources) {

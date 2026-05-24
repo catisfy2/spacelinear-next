@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import type { Topic, Subject, ReviewHistoryEntry, Difficulty, Resource } from '@/lib/types';
 import { processReview, INITIAL_EASE } from '@/lib/algorithm';
 import { supabase } from '@/integrations/supabase/client';
+import { deleteTopicResourceFile } from '@/lib/uploadTopicResource';
 
 interface AppState {
   subjects: Subject[];
@@ -309,6 +310,10 @@ export const useStore = create<AppState>()((set, get) => ({
   },
 
   deleteResource: async (resourceId) => {
+    const resource = get().resources.find(item => item.id === resourceId);
+    if (resource?.content) {
+      await deleteTopicResourceFile(resource.content);
+    }
     await supabase.from('resources').delete().eq('id', resourceId);
     set(s => ({ resources: s.resources.filter(r => r.id !== resourceId) }));
   },

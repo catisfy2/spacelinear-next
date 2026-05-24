@@ -15,8 +15,8 @@ import {
 } from '@/lib/constants';
 import { previewIntervals } from '@/lib/algorithm';
 import type { Difficulty } from '@/lib/types';
-import { TopicNoteEditor } from '@/components/topics/TopicNoteEditor';
-import { TopicResources } from '@/components/topics/TopicResources';
+import { TopicCanvas } from '@/components/topics/TopicCanvas';
+import { IceStudyTimer } from '@/components/topics/IceStudyTimer';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -29,15 +29,12 @@ import {
 } from '@/components/ui/alert-dialog';
 import { TopicActionsMenu } from '@/components/topics/TopicActionsMenu';
 
-type Tab = 'notes' | 'resources';
-
 export function TopicPage() {
   const params = useParams();
   const id = params?.id as string | undefined;
   const router = useRouter();
   const { topics, subjects, reviewHistory, submitReview, aiGenerationStatus, startPollingAiContent } = useStore();
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<Tab>('notes');
   const [sidebarWidth, setSidebarWidth] = useState(320);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(
     typeof window !== 'undefined' ? window.innerWidth < 768 : false,
@@ -175,6 +172,8 @@ export function TopicPage() {
           })}
         </div>
       </section>
+
+      <IceStudyTimer />
 
       {/* Properties + review history */}
       <section className="space-y-5">
@@ -392,36 +391,8 @@ export function TopicPage() {
           </div>
         </div>
 
-        {/* Tabs */}
-        <div className="flex items-center gap-2 px-6 pt-3 pb-0 border-b border-border flex-shrink-0">
-          {(['notes', 'resources'] as Tab[]).map(tab => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={cn(
-                'px-4 py-2 text-sm font-medium capitalize border-b-2 transition-colors -mb-px rounded-t-md',
-                activeTab === tab
-                  ? 'border-primary text-foreground bg-background'
-                  : 'border-transparent text-muted-foreground hover:text-foreground hover:bg-accent/40',
-              )}
-            >
-              {tab}
-            </button>
-          ))}
-        </div>
-
-        {/* Tab content */}
-        <div className="flex-1">
-          {activeTab === 'notes' && (
-            <div className="px-0 py-0">
-              <TopicNoteEditor topicId={topic.id} />
-            </div>
-          )}
-          {activeTab === 'resources' && (
-            <div className="px-6 py-5">
-              <TopicResources topicId={topic.id} />
-            </div>
-          )}
+        <div className="flex-1 min-h-0 flex flex-col">
+          <TopicCanvas topicId={topic.id} />
         </div>
       </div>
 

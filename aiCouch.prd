@@ -1,59 +1,62 @@
-Product Requirement Document (PRD) Addendum: AI Operations Co-Pilot & Feel-Good Study Coach
+Product Requirement Document (PRD) Addendum: Dynamic Behavioral Triggers for AI Study Coach
 Status: Ready for Implementation
 Author: Product Lead
-Target Stack: Next.js 16 (App Router), Supabase (Postgres + Auth), Groq API via Vercel AI SDK, Inngest, Zustand, Tailwind CSS + shadcn/ui.
+Target Stack: Next.js 16 (App Router), Supabase (Postgres + Auth), Groq API via Vercel AI SDK, Zustand.
 1. Feature Overview & Objectives
-This document serves as an isolated feature specification for adding an Agentic AI Study Coach to the existing SpaceLinear ecosystem.
-Instead of acting as a static text assistant, this feature bridges conversational interaction with real-time app execution. It combines Feel-Good Productivity coaching pillars with autonomous database actions to automate manual workflow scaffolding (creating subjects, topics, and inserting initial MDX structures).
-2. Core Functional Pillars (The Unified Persona)
-The AI Coach must seamlessly merge two operational identities within a single conversation loop:
-2.1 The Feel-Good Productivity Blueprint
-Whenever a user interacts with the coach panel, the assistant must structure its conversational replies around five core behavioral rules:
-Initial Discovery Framework: The coach must actively prompt the user to declare how many subjects they are currently balancing and what core topics need structural breakdown instead of waiting passively for manual setup.
-Prioritization Mapping: The coach must guide the user to identify exactly one "Daily Adventure" (the highest leverage topic/task that defines a successful day) and two "Side Quests" (health, lifestyle, or break-focused activities).
-The Priority Rule: If the user states they "do not have time" for a critical learning block or side quest, the coach must gently remind them that time constraints are fundamentally a reflection of priority.
-The 3 Ps Strategy: Before committing massive learning structures to the database, the coach must challenge the user to define their entry across the 3 Ps:
-Play: How can they make interacting with this specific flashcard or topic inherently engaging?
-Power: How can they maximize personal control over how they digest this topic?
-People: Who is their designated study peer, classmate, or accountability anchor for this concept?
-The Unblock Method (Follow-Through): If a user expresses procrastination or overwhelm regarding a topic, the coach must systematically walk them through diagnosing Clarity, Courage, and Inertia, breaking the target topic down into frictionless chunks.
-2.2 Agentic Abilities (Database Tooling)
-The coach must be given permission to autonomously execute database mutations when the user approves a learning path in chat.
-       +--------------------------------------------+
-       |   Conversational Intent (Chat Prompt)       |
-       +--------------------------------------------+
-                             |
-                             v
-       +--------------------------------------------+
-       |   Groq LLM Engine (Multi-Step Evaluation)  |
-       +--------------------------------------------+
-                 |                        |
-        (Calls Tool 1)           (Calls Tool 2)
-                 v                        v
-+------------------------+      +-------------------------------+
-|  `createSubject()`     |      |  `createTopic()`              |
-|  Inserts record into   |      |  Inserts record into `topics` |
-|  `subjects` table      |      |  mapped to the `subjectId`    |
-+------------------------+      +-------------------------------+
-3. Technical Specifications & Tool Design
-The endpoint (/api/coach/agent/route.ts) utilizes the Vercel AI SDK to expose tools directly to the Groq model (llama-3.3-70b-versatile).
-3.1 Exposed LLM Tools
-The agent has access to two explicit local execution handlers. Every tool operation must strictly extract the server-validated user context (auth.users(id)) to enforce Row Level Security (RLS).
-1. createSubject
-Purpose: Sets up a high-level bucket for grouping notes and flashcards.
-Parameters:
-name (string, required): The title of the domain (e.g., "Algorithm Design").
-description (string, optional): Contextual scope.
-Action: Direct database insertion into the subjects table. Returns the newly generated subjectId.
-2. createTopic
-Purpose: Scaffolds an active recall item due immediately for review.
-Parameters:
-subjectId (uuid, required): The parent reference id.
-title (string, required): The specific flashcard/note item (e.g., "Dynamic Programming").
-description (string, required): High-level breakdown summary.
-content (string, optional): Baseline markdown structure.
-Action: Direct insertion into the topics table. It must initialize the tracking state to 'new', tag it with ['ai-scaffolded'], and stamp next_review_date to the current system date so it automatically appears in the user's Today review queue.
-4. UI/UX Additions & Interaction Logic
-Component Placement: A modern, collapsable slide-out utility panel or split-screen interface integrated alongside the primary application layout grids.
-Diagnostic Execution Streams: When tools run in the background (createSubject or createTopic), the chat container must intercept the tool lifecycle updates and display them as inline operational tags (e.g., ⚙️ Building Subject: Web Engineering...) so the user can witness the agentic adjustments transparently.
-Cache Revalidation Workflow: To eliminate stale screen instances, the client-side interaction block must hook into the chat interface's lifecycle (onFinish). When a sequence completes, it must programmatically trigger a cash invalidation cycle for TanStack Query keys ['subjects'] and ['topics'], providing instant, non-blocking screen updates across SpaceLinear.
+This PRD specifies the implementation requirements for Dynamic Behavioral Triggers within the SpaceLinear AI Study Coach ecosystem.
+Rather than relying purely on user-initiated chat messages, the AI Coach will dynamically adapt its persona, state, and messaging logic based on real-time data states, operational triggers, and user interaction histories (e.g., initial setup status, bulk syllabus uploads, or recurring subject friction).
+The primary objective is to transform the assistant into a context-aware co-pilot that proactively guides the user using the Feel-Good Productivity framework precisely when they hit specific study checkpoints.
+2. Trigger Classifications & Behavioral Specifications
+The engine must monitor and react to three specific contextual interaction scenarios:
+Trigger A: The First-Time Setup (Onboarding Variant)
+Context Condition: Fired automatically when a user opens the chat panel and the system detects that the user's subjects table count is equal to 0.
+AI Coach Behavior: * The coach bypasses passive greeting loops and takes complete control of the conversation.
+It must issue an energetic, high-impact prompt asking the user directly about the number of subjects they are managing and what core topics need an immediate structural breakdown.
+Tone Requirement: High-energy, collaborative, welcoming, and administrative-focused.
+Trigger B: The Syllabus Dump & Auto-Scaffold (Agentic Variant)
+Context Condition: Fired when a user inputs a list of multiple tasks, a dense string of notes, or a pasted curriculum syllabus into the text field.
+AI Coach Behavior:
+The coach intercepts the user's string before processing database executions.
+It forces a conversational checkpoint requiring the user to explicitly define one "Daily Adventure" (the highest-leverage topic choice) and two "Side Quests" (health or relationship breaks).
+It prompts the user to apply the 3 Ps framework (Play, Power, People) to their primary technical topic.
+Agentic Hand-off: Upon minimal user validation or acknowledgment of these goals, the AI activates its createSubject and createTopic tools to automatically seed the database rows into Supabase.
+Trigger C: Procrastination & The Wall (Friction Variant)
+Context Condition: Triggered under two specific states:
+The user types keywords indicating frustration or inertia into the chat interface (e.g., "stuck," "overwhelmed," "procrastinating").
+The application front-end detects that a specific topic has recorded multiple consecutive relearn logs in the review_history table.
+AI Coach Behavior:
+The system pauses standard study workflows and overrides the interface state with the Unblock Method.
+It steps the user sequentially through diagnosing structural Clarity, mental Courage, and physical Inertia.
+It challenges the user to initiate a 5-minute countdown (the dose of discipline) focusing exclusively on the top two lines of their MDX file.
+It mandates that the user state or message their designated accountability buddy.
+3. Technical Implementation Architecture
++--------------------------------------------------------+
+|                      Client UI                         |
+|   (Detects empty space, text dumps, or relearn loops)  |
++--------------------------------------------------------+
+                           |
+                           v  (Sends Action Context Payload)
++--------------------------------------------------------+
+|               `/api/coach/agent` Endpoint              |
+|        Validates Supabase Session & Checks Counts      |
++--------------------------------------------------------+
+                           |
+                           v  (Appends Specialized System Prompt)
++--------------------------------------------------------+
+|                        Groq AI                         |
+|    Switches behavior dynamically based on context payload|
++--------------------------------------------------------+
+3.1 Endpoint Context Enrichment
+The Next.js API route handler must perform server-side telemetry aggregation right before evaluating messages with the Groq API. The prompt constructor payload must be dynamically mutated as follows:
+TypeScript
+// Example Context Payload Structure expected by the LLM system router
+interface CoachContextPayload {
+  triggerType: 'ONBOARDING' | 'SYLLABUS_DUMP' | 'FRICTION' | 'STANDARD';
+  activeTopicId?: string;
+  consecutiveRelearnCount?: number;
+}
+System Prompt Modification Rule: If triggerType === 'FRICTION', the system instruction string must prioritize the injection of the Unblock Method guidelines over traditional educational chat formatting, keeping conversational tokens highly focused on mitigation.
+4. UI/UX Interaction Requirements
+Inline Tool Status Logging: While executing Trigger B (Syllabus Dump), the chat panel component must explicitly intercept the active tool call array and render localized, micro-feedback states ("⚙️ Initializing Subject...") so the user visually sees the layout being scaffolded.
+Interface Overlays: For Trigger C (The Wall), the user interface can optionally illuminate a distinct highlight boundary around the text container, visually cueing the user that they have transitioned from standard review parameters into a focused, 5-minute unblocking milestone.
+Cache Refresh Hooks: Upon completion of agentic tools triggered via any behavioral workflow, the frontend client must intercept the generation stream's onFinish block to invalidate old local caches, populating new entities inside the client view seamlessly.

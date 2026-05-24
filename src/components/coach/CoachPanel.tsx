@@ -1,12 +1,18 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, type UIMessage } from "ai";
 import { useQueryClient } from "@tanstack/react-query";
 import { Send, Sparkles, Square } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useStore } from "@/store/useStore";
+import {
+  buildCoachGreeting,
+  detectTriggerType,
+  getConsecutiveRelearnCount,
+  type CoachContextPayload,
+} from "@/lib/coach/context";
 import { CoachMessage } from "./CoachMessage";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -20,18 +26,23 @@ import {
 } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 
-const INITIAL_MESSAGES: UIMessage[] = [
-  {
-    id: "coach-welcome",
-    role: "assistant",
-    parts: [
-      {
-        type: "text",
-        text: "Hey! I'm your SpaceLinear study coach. How many subjects are you balancing right now, and what's the one topic you'd love to make progress on today?",
-      },
-    ],
-  },
-];
+function buildInitialMessages(
+  subjectCount: number,
+  frictionActive: boolean,
+): UIMessage[] {
+  return [
+    {
+      id: "coach-welcome",
+      role: "assistant",
+      parts: [
+        {
+          type: "text",
+          text: buildCoachGreeting(subjectCount, frictionActive),
+        },
+      ],
+    },
+  ];
+}
 
 interface CoachPanelProps {
   open: boolean;
@@ -41,9 +52,28 @@ interface CoachPanelProps {
 export function CoachPanel({ open, onOpenChange }: CoachPanelProps) {
   const { session, user } = useAuth();
   const fetchAll = useStore((s) => s.fetchAll);
+  const subjects = useStore((s) => s.subjects);
+  const reviewHistory = useStore((s) => s.reviewHistory);
+  const selectedSidebarTopicId = useStore((s) => s.selectedSidebarTopicId);
   const queryClient = useQueryClient();
   const [input, setInput] = useState("");
+  const [isFrictionMode, setIsFrictionMode] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const contextRef = useRef<CoachContextPayload>({ triggerType: "STANDARD" });
+
+  const consecutiveRelearnCount = useMemo(
+    () => getConsecutiveRelearnCount(reviewHistory, selectedSidebarTopicId),
+    [reviewHistory, selectedSidebarTopicId],
+  );
+
+  const initialMessages = useMemo(
+    () =>
+      buildInitialMessages(
+        subjects.length,
+        consecutiveRelearnCount >= 2,
+      ),
+    [subjects.length, consecutiveRelearnCount],
+  );
 
   const transport = useMemo(
     () =>
@@ -51,6 +81,7 @@ export function CoachPanel({ open, onOpenChange }: CoachPanelProps) {
         api: "/api/coach/agent",
         body: () => ({
           accessToken: session?.access_token ?? "",
+          ...contextRef.current,
         }),
       }),
     [session?.access_token],
@@ -68,11 +99,33 @@ export function CoachPanel({ open, onOpenChange }: CoachPanelProps) {
   const { messages, sendMessage, status, stop, error } = useChat({
     id: "spacelinear-coach",
     transport,
-    messages: INITIAL_MESSAGES,
+    messages: initialMessages,
     onFinish: () => {
       void syncAppData();
     },
   });
+
+  useEffect(() => {
+    if (!open) {
+      setIsFrictionMode(false);
+      contextRef.current = { triggerType: "STANDARD" };
+      return;
+    }
+
+    if (consecutiveRelearnCount >= 2) {
+      setIsFrictionMode(true);
+      contextRef.current = {
+        triggerType: "FRICTION",
+        activeTopicId: selectedSidebarTopicId ?? undefined,
+        consecutiveRelearnCount,
+      };
+      return;
+    }
+
+    if (subjects.length === 0) {
+      contextRef.current = { triggerType: "ONBOARDING" };
+    }
+  }, [open, consecutiveRelearnCount, selectedSidebarTopicId, subjects.length]);
 
   const isBusy = status === "submitted" || status === "streaming";
 
@@ -80,6 +133,26 @@ export function CoachPanel({ open, onOpenChange }: CoachPanelProps) {
     event?.preventDefault();
     const text = input.trim();
     if (!text || isBusy || !session?.access_token) return;
+
+    const relearnCount = getConsecutiveRelearnCount(
+      reviewHistory,
+      selectedSidebarTopicId,
+    );
+    const triggerType = detectTriggerType(
+      text,
+      subjects.length,
+      relearnCount,
+    );
+
+    contextRef.current = {
+      triggerType,
+      activeTopicId: selectedSidebarTopicId ?? undefined,
+      consecutiveRelearnCount: relearnCount > 0 ? relearnCount : undefined,
+    };
+
+    if (triggerType === "FRICTION") {
+      setIsFrictionMode(true);
+    }
 
     setInput("");
     await sendMessage({ text });
@@ -110,7 +183,9 @@ export function CoachPanel({ open, onOpenChange }: CoachPanelProps) {
             <div>
               <SheetTitle className="text-base">Study Coach</SheetTitle>
               <SheetDescription className="text-xs">
-                Feel-Good Productivity + agentic scaffolding
+                {isFrictionMode
+                  ? "Unblock Mode — 5-minute focus milestone"
+                  : "Feel-Good Productivity + agentic scaffolding"}
               </SheetDescription>
             </div>
           </div>
@@ -143,17 +218,32 @@ export function CoachPanel({ open, onOpenChange }: CoachPanelProps) {
 
         <form
           onSubmit={(e) => void handleSubmit(e)}
-          className="border-t bg-background p-4"
+          className={cn(
+            "border-t bg-background p-4 transition-shadow",
+            isFrictionMode && "ring-2 ring-inset ring-destructive/80",
+          )}
         >
+          {isFrictionMode && (
+            <p className="mb-2 text-xs font-medium text-destructive">
+              Unblock Mode active — focus on Clarity, Courage, and Inertia
+            </p>
+          )}
           <div className="flex items-end gap-2">
             <Textarea
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Tell me what you're studying…"
+              placeholder={
+                isFrictionMode
+                  ? "What's blocking you right now?"
+                  : "Tell me what you're studying…"
+              }
               rows={2}
               disabled={isBusy || !session?.access_token}
-              className="min-h-[72px] resize-none text-sm"
+              className={cn(
+                "min-h-[72px] resize-none text-sm",
+                isFrictionMode && "border-destructive/50 focus-visible:ring-destructive/50",
+              )}
             />
             {isBusy ? (
               <Button
