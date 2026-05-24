@@ -158,22 +158,32 @@ export function SidebarChatDropdown({
 
           {/* Conversation list */}
           {displayConversations.map((conv) => (
-            <button
+            <div
               key={conv.id}
-              type="button"
+              role="button"
+              tabIndex={0}
               onClick={() => navigateToChat(conv.id)}
-              className="group flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm text-sidebar-foreground transition-colors hover:bg-accent hover:text-foreground"
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  navigateToChat(conv.id);
+                }
+              }}
+              className="group flex w-full cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm text-sidebar-foreground transition-colors hover:bg-accent hover:text-foreground"
             >
               <span className="flex-1 truncate">{conv.title}</span>
               <button
                 type="button"
-                onClick={(e) => deleteConversation(e, conv.id)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  deleteConversation(e, conv.id);
+                }}
                 className="hidden shrink-0 text-muted-foreground hover:text-destructive group-hover:block"
                 aria-label="Delete conversation"
               >
                 <Trash2 className="h-3 w-3" />
               </button>
-            </button>
+            </div>
           ))}
 
           {/* Show more link */}
