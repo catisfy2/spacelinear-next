@@ -198,7 +198,7 @@ export function TodayPage() {
         </div>
 
         {hasDue ? (
-          <ul className="mt-3 divide-y divide-border rounded-xl border border-border">
+          <ul className="mt-3">
             {dueTopics.map((topic) => {
               const sub = subjects.find((s) => s.id === topic.subjectId);
               const isReviewed = reviewedIds.has(topic.id);
@@ -206,7 +206,7 @@ export function TodayPage() {
                 <li
                   key={topic.id}
                   className={cn(
-                    "flex items-center gap-3 px-4 py-3 transition-colors",
+                    "flex items-center gap-3 rounded-lg px-4 py-3 transition-colors",
                     isReviewed ? "opacity-40" : "hover:bg-accent/40",
                   )}
                 >
@@ -229,7 +229,7 @@ export function TodayPage() {
                   >
                     <p
                       className={cn(
-                        "truncate text-sm font-medium",
+                        "truncate text-sm font-semibold",
                         isReviewed
                           ? "text-muted-foreground line-through"
                           : "text-foreground",
@@ -238,7 +238,7 @@ export function TodayPage() {
                       {topic.title}
                     </p>
                     {sub && (
-                      <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                      <p className="mt-0.5 truncate text-xs text-foreground/70">
                         {sub.icon} {sub.name}
                       </p>
                     )}
@@ -308,22 +308,22 @@ export function TodayPage() {
                 <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
                   {dateLabel}
                 </p>
-                <ul className="divide-y divide-border rounded-xl border border-border">
+                <ul>
                   {items.map(({ entry, topic, subject }) => (
                     <li
                       key={entry.id}
-                      className="px-4 py-3 transition-colors hover:bg-accent/30"
+                      className="rounded-lg px-4 py-3 transition-colors hover:bg-accent/30"
                     >
                       <div className="flex items-center justify-between gap-3">
                         <div className="min-w-0 flex-1">
                           <Link
                             href={`/topics/${topic.id}`}
-                            className="truncate text-sm font-medium text-foreground hover:text-primary"
+                            className="truncate text-sm font-semibold text-foreground hover:text-primary"
                           >
                             {topic.title}
                           </Link>
                           {subject && (
-                            <p className="mt-0.5 truncate text-xs text-muted-foreground">
+                            <p className="mt-0.5 truncate text-xs text-foreground/70">
                               {subject.icon} {subject.name}
                             </p>
                           )}
@@ -334,7 +334,7 @@ export function TodayPage() {
                         />
                       </div>
                       {entry.commitMessage && (
-                        <p className="mt-1.5 text-xs italic text-muted-foreground/70">
+                        <p className="mt-1.5 text-sm italic text-foreground/70">
                           &ldquo;{entry.commitMessage}&rdquo;
                         </p>
                       )}
