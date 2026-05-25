@@ -1,58 +1,63 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { MessageSquare, ChevronRight, Trash2 } from "lucide-react";
+import { MessageSquare, ChevronRight, MoreVertical } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import type { Conversation } from "@/lib/types";
+import { useSidebar } from "@/components/ui/sidebar";
+import {
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
+} from "@/components/ui/sidebar";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface SidebarChatDropdownProps {
-  collapsed: boolean;
   isActive: boolean;
 }
 
-export function SidebarChatDropdown({
-  collapsed,
-  isActive,
-}: SidebarChatDropdownProps) {
+export function SidebarChatDropdown({ isActive }: SidebarChatDropdownProps) {
   const router = useRouter();
   const pathname = usePathname();
   const { user } = useAuth();
+  const { state: sidebarState } = useSidebar();
+  const isCollapsed = sidebarState === "collapsed";
   const [expanded, setExpanded] = useState(false);
   const [conversations, setConversations] = useState<Conversation[]>([]);
-  const dropdownRef = useRef<HTMLDivElement>(null);
   const isOnChat =
     (pathname === "/chat" || pathname?.startsWith("/chat/")) ?? false;
 
   // Auto-expand when on chat page
   useEffect(() => {
-    if (isOnChat && !collapsed) {
+    if (isOnChat && !isCollapsed) {
       setExpanded(true);
     }
-  }, [isOnChat, collapsed]);
+  }, [isOnChat, isCollapsed]);
 
-  // Fetch latest 8 conversations (7 shown + 1 to determine if "show more" needed)
+  // Fetch conversations when expanded
   useEffect(() => {
-    if (!expanded || !user || collapsed) return;
+    if (!expanded || !user || isCollapsed) return;
     fetchConversations();
-  }, [expanded, user, collapsed]);
-
-  // Close when clicking outside
-  useEffect(() => {
-    if (collapsed || !expanded) return;
-    const handleClick = (e: MouseEvent) => {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(e.target as Node)
-      ) {
-        setExpanded(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [collapsed, expanded]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [expanded, user, isCollapsed]);
 
   const fetchConversations = async () => {
     if (!user) return;
@@ -82,8 +87,22 @@ export function SidebarChatDropdown({
     setExpanded(false);
   };
 
-  const deleteConversation = async (e: React.MouseEvent, id: string) => {
-    e.stopPropagation();
+  const renameConversation = async (id: string, currentTitle: string) => {
+    const newTitle = window.prompt("Rename conversation", currentTitle);
+    if (!newTitle || newTitle === currentTitle || !user) return;
+
+    await supabase
+      .from("conversations")
+      .update({ title: newTitle })
+      .eq("id", id)
+      .eq("user_id", user.id);
+
+    setConversations((prev) =>
+      prev.map((c) => (c.id === id ? { ...c, title: newTitle } : c)),
+    );
+  };
+
+  const deleteConversation = async (id: string) => {
     await supabase.from("conversations").delete().eq("id", id);
     setConversations((prev) => prev.filter((c) => c.id !== id));
   };
@@ -91,113 +110,173 @@ export function SidebarChatDropdown({
   const hasMore = conversations.length >= 8;
   const displayConversations = conversations.slice(0, 7);
 
-  if (collapsed) {
-    // Collapsed sidebar — just an icon button that navigates to /chat
+  // --- Shared menu items rendered inside both ContextMenu and DropdownMenu ---
+  function ConversationMenuItems({ conv }: { conv: Conversation }) {
     return (
-      <button
-        type="button"
-        onClick={() => navigateToChat()}
-        className={cn(
-          "flex items-center justify-center rounded-lg px-2 py-1.5 text-sm transition-colors",
-          isOnChat
-            ? "bg-accent font-medium text-foreground"
-            : "text-sidebar-foreground hover:bg-accent hover:text-foreground",
-        )}
-        aria-label="Chat"
-      >
-        <MessageSquare className="h-4 w-4" />
-      </button>
+      <>
+        <ContextMenuItem
+          inset
+          onSelect={() => renameConversation(conv.id, conv.title)}
+        >
+          Rename
+        </ContextMenuItem>
+        <ContextMenuItem inset onSelect={() => {}}>
+          Pin
+        </ContextMenuItem>
+        <ContextMenuItem inset onSelect={() => {}}>
+          Archive
+        </ContextMenuItem>
+        <ContextMenuSeparator />
+        <ContextMenuItem
+          inset
+          onSelect={() => deleteConversation(conv.id)}
+          className="text-destructive focus:text-destructive"
+        >
+          Delete
+        </ContextMenuItem>
+      </>
+    );
+  }
+
+  function DropdownMenuItems({ conv }: { conv: Conversation }) {
+    return (
+      <>
+        <DropdownMenuItem
+          inset
+          onSelect={() => renameConversation(conv.id, conv.title)}
+        >
+          Rename
+        </DropdownMenuItem>
+        <DropdownMenuItem inset onSelect={() => {}}>
+          Pin
+        </DropdownMenuItem>
+        <DropdownMenuItem inset onSelect={() => {}}>
+          Archive
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          inset
+          onSelect={() => deleteConversation(conv.id)}
+          className="text-destructive focus:text-destructive"
+        >
+          Delete
+        </DropdownMenuItem>
+      </>
+    );
+  }
+
+  // Collapsed sidebar: just an icon button linking to /chat
+  if (isCollapsed) {
+    return (
+      <SidebarMenuItem>
+        <SidebarMenuButton asChild isActive={isActive} tooltip="Chat">
+          <a
+            href="/chat"
+            onClick={(e) => {
+              e.preventDefault();
+              navigateToChat();
+            }}
+          >
+            <MessageSquare />
+            <span>Chat</span>
+          </a>
+        </SidebarMenuButton>
+      </SidebarMenuItem>
     );
   }
 
   return (
-    <div ref={dropdownRef}>
-      {/* ── Chat nav button ── */}
-      <button
-        type="button"
+    <SidebarMenuItem>
+      <SidebarMenuButton
+        isActive={isActive || expanded}
         onClick={() => setExpanded(!expanded)}
-        className={cn(
-          "flex w-full items-center rounded-lg px-2 py-1.5 text-sm transition-colors",
-          "gap-2.5",
-          isOnChat || expanded
-            ? "bg-accent font-medium text-foreground"
-            : "text-sidebar-foreground hover:bg-accent hover:text-foreground",
-        )}
+        tooltip="Chat"
       >
-        <MessageSquare className="h-4 w-4 shrink-0" />
+        <MessageSquare />
         <span className="flex-1 text-left">Chat</span>
         <ChevronRight
           className={cn(
-            "h-3.5 w-3.5 text-muted-foreground transition-transform duration-200",
+            "ml-auto h-3.5 w-3.5 text-sidebar-foreground/50 transition-transform duration-200",
             expanded && "rotate-90",
           )}
         />
-      </button>
+      </SidebarMenuButton>
 
-      {/* ── Dropdown history ── */}
       {expanded && (
-        <div className="ml-2 mt-0.5 space-y-0.5 border-l border-border pl-2">
-          {/* New Chat option */}
-          <button
-            type="button"
-            onClick={() => navigateToChat()}
-            className="flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-sm text-sidebar-foreground transition-colors hover:bg-accent hover:text-foreground"
-          >
-            <span className="flex h-4 w-4 items-center justify-center text-xs font-bold text-muted-foreground">
-              +
-            </span>
-            <span>New Chat</span>
-          </button>
+        <SidebarMenuSub>
+          {/* New Chat */}
+          <SidebarMenuSubItem>
+            <SidebarMenuSubButton
+              onClick={() => navigateToChat()}
+              className="cursor-pointer"
+            >
+              <span className="flex h-4 w-4 items-center justify-center text-xs font-bold text-sidebar-foreground/50">
+                +
+              </span>
+              <span>New Chat</span>
+            </SidebarMenuSubButton>
+          </SidebarMenuSubItem>
 
-          {/* Loading state */}
+          {/* Empty state */}
           {conversations.length === 0 && (
-            <p className="px-2 py-1.5 text-xs text-muted-foreground">
-              No conversations yet
-            </p>
+            <SidebarMenuSubItem>
+              <span className="block px-2 py-1.5 text-xs text-sidebar-foreground/60">
+                No conversations yet
+              </span>
+            </SidebarMenuSubItem>
           )}
 
-          {/* Conversation list */}
+          {/* Conversations */}
           {displayConversations.map((conv) => (
-            <div
-              key={conv.id}
-              role="button"
-              tabIndex={0}
-              onClick={() => navigateToChat(conv.id)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  navigateToChat(conv.id);
-                }
-              }}
-              className="group flex w-full cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm text-sidebar-foreground transition-colors hover:bg-accent hover:text-foreground"
-            >
-              <span className="flex-1 truncate">{conv.title}</span>
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  deleteConversation(e, conv.id);
-                }}
-                className="hidden shrink-0 text-muted-foreground hover:text-destructive group-hover:block"
-                aria-label="Delete conversation"
-              >
-                <Trash2 className="h-3 w-3" />
-              </button>
-            </div>
+            <SidebarMenuSubItem key={conv.id}>
+              <ContextMenu>
+                <ContextMenuTrigger asChild>
+                  <SidebarMenuSubButton
+                    onClick={() => navigateToChat(conv.id)}
+                    className="cursor-pointer group/menu-sub-button"
+                  >
+                    <span className="flex-1 truncate">{conv.title}</span>
+                    <span
+                      className="opacity-0 group-hover/menu-sub-button:opacity-100 transition-opacity"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button
+                            type="button"
+                            className="flex items-center justify-center rounded p-0.5 text-sidebar-foreground/50 hover:text-sidebar-foreground"
+                            aria-label="Conversation options"
+                          >
+                            <MoreVertical className="h-3.5 w-3.5" />
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" side="right">
+                          <DropdownMenuItems conv={conv} />
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </span>
+                  </SidebarMenuSubButton>
+                </ContextMenuTrigger>
+                <ContextMenuContent>
+                  <ConversationMenuItems conv={conv} />
+                </ContextMenuContent>
+              </ContextMenu>
+            </SidebarMenuSubItem>
           ))}
 
-          {/* Show more link */}
+          {/* Show more */}
           {hasMore && (
-            <button
-              type="button"
-              onClick={() => router.push("/chat/history")}
-              className="flex w-full items-center gap-2.5 rounded-lg px-2 py-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
-            >
-              Show more →
-            </button>
+            <SidebarMenuSubItem>
+              <SidebarMenuSubButton
+                onClick={() => router.push("/chat/history")}
+                className="cursor-pointer text-xs text-sidebar-foreground/60"
+              >
+                Show more →
+              </SidebarMenuSubButton>
+            </SidebarMenuSubItem>
           )}
-        </div>
+        </SidebarMenuSub>
       )}
-    </div>
+    </SidebarMenuItem>
   );
 }

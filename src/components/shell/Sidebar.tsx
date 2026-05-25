@@ -9,8 +9,6 @@ import {
   BookOpen,
   Plus,
   CalendarCheck,
-  ChevronLeft,
-  ChevronRight,
   Settings,
   Palette,
   FileText,
@@ -18,13 +16,22 @@ import {
 } from "lucide-react";
 
 import logoImg from "@/assets/icon-spacelinear.png";
-import { useStore } from "@/store/useStore";
-import { useAuth } from "@/hooks/useAuth";
-import { cn } from "@/lib/utils";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Sidebar as SidebarPrimitive,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarSeparator,
+  SidebarTrigger,
+} from "@/components/ui/sidebar";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { useAuth } from "@/hooks/useAuth";
 import { CreateTopicModal } from "@/components/topics/CreateTopicModal";
-import { SidebarNavItem } from "@/components/shell/SidebarNavItem";
 import { SidebarChatDropdown } from "@/components/chat/SidebarChatDropdown";
 import {
   applyThemeMode,
@@ -34,7 +41,6 @@ import {
 } from "@/lib/theme";
 
 export function Sidebar() {
-  const { sidebarCollapsed, toggleSidebar } = useStore();
   const { user } = useAuth();
   const pathname = usePathname();
   const [showCreateTopic, setShowCreateTopic] = useState(false);
@@ -67,206 +73,153 @@ export function Sidebar() {
   const themeLabel =
     themeMode === "light" ? "Light" : themeMode === "dark" ? "Dark" : "System";
 
+  const primaryNavItems = [
+    { href: "/today", label: "Today", icon: CalendarCheck, exact: true },
+    { href: "/topics", label: "Topics", icon: LayoutList },
+    { href: "/subjects", label: "Subjects", icon: BookOpen },
+    { href: "/pulse", label: "Pulse", icon: BarChart3, exact: true },
+  ];
+
+  const secondaryNavItems = [
+    { href: "/materials", label: "Materials", icon: FileText },
+    { href: "/notes", label: "Notes", icon: StickyNote },
+  ];
+
+  function isActive(href: string, exact?: boolean) {
+    if (exact) return pathname === href;
+    return pathname === href || (pathname?.startsWith(href + "/") ?? false);
+  }
+
   return (
-    <aside
-      className={cn(
-        "flex h-full min-h-0 flex-shrink-0 flex-col border-r border-border bg-sidebar",
-        sidebarCollapsed ? "w-12 items-center" : "w-[244px]",
-      )}
-    >
-      <div
-        className={cn(
-          "flex items-center pt-4 pb-2",
-          sidebarCollapsed ? "px-2 flex-col gap-2" : "px-4 justify-between",
-        )}
-      >
-        <img
-          src={typeof logoImg === "string" ? logoImg : logoImg.src}
-          alt="SpaceLinear"
-          className="h-[34px] w-[34px] rounded-lg"
-        />
-        {sidebarCollapsed ? (
-          <button
-            type="button"
-            onClick={toggleSidebar}
-            className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-            aria-label="Expand sidebar"
-          >
-            <ChevronRight className="h-4 w-4" />
-          </button>
-        ) : (
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => setShowCreateTopic(true)}
-              className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-              aria-label="New topic"
-            >
-              <Plus className="h-4 w-4" />
-            </button>
-            <button
-              type="button"
-              onClick={toggleSidebar}
-              className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-              aria-label="Collapse sidebar"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </button>
-          </div>
-        )}
-      </div>
-
-      <ScrollArea className={cn("flex-1", sidebarCollapsed ? "px-2" : "px-4")}>
-        <div className="flex flex-col gap-2 py-2">
-          <nav className="flex flex-col gap-0.5">
-            <SidebarNavItem
-              href="/today"
-              label="Today"
-              icon={CalendarCheck}
-              collapsed={sidebarCollapsed}
-              isActive={pathname === "/today"}
-            />
-            <SidebarNavItem
-              href="/topics"
-              label="Topics"
-              icon={LayoutList}
-              collapsed={sidebarCollapsed}
-              isActive={
-                pathname === "/topics" ||
-                (pathname?.startsWith("/topics/") ?? false)
-              }
-            />
-            <SidebarNavItem
-              href="/subjects"
-              label="Subjects"
-              icon={BookOpen}
-              collapsed={sidebarCollapsed}
-              isActive={
-                pathname === "/subjects" ||
-                (pathname?.startsWith("/subjects/") ?? false)
-              }
-            />
-            <SidebarNavItem
-              href="/pulse"
-              label="Pulse"
-              icon={BarChart3}
-              collapsed={sidebarCollapsed}
-              isActive={pathname === "/pulse"}
-            />
-          </nav>
-
-          <nav className="flex flex-col gap-0.5 mt-2">
-            <SidebarChatDropdown
-              collapsed={sidebarCollapsed}
-              isActive={
-                pathname === "/chat" ||
-                (pathname?.startsWith("/chat/") ?? false)
-              }
-            />
-            <SidebarNavItem
-              href="/materials"
-              label="Materials"
-              icon={FileText}
-              collapsed={sidebarCollapsed}
-              isActive={
-                pathname === "/materials" ||
-                (pathname?.startsWith("/materials/") ?? false)
-              }
-            />
-            <SidebarNavItem
-              href="/notes"
-              label="Notes"
-              icon={StickyNote}
-              collapsed={sidebarCollapsed}
-              isActive={
-                pathname === "/notes" ||
-                (pathname?.startsWith("/notes/") ?? false)
-              }
-            />
-          </nav>
-        </div>
-      </ScrollArea>
-
-      <div
-        className={cn(
-          "mt-auto border-t border-border py-3",
-          sidebarCollapsed
-            ? "flex flex-col items-center gap-1 px-2"
-            : "space-y-1 px-4",
-        )}
-      >
-        {!sidebarCollapsed ? (
-          <>
-            <Link
-              href="/settings"
-              className="flex items-center gap-2.5 rounded-lg p-2 text-sm text-sidebar-foreground transition-colors hover:bg-accent hover:text-foreground"
-            >
-              <Settings className="h-4 w-4 shrink-0" />
-              <span>Settings</span>
-            </Link>
-            <button
-              type="button"
-              onClick={cycleTheme}
-              className="flex w-full items-center gap-2.5 rounded-lg p-2 text-left text-sm text-sidebar-foreground transition-colors hover:bg-accent hover:text-foreground"
-            >
-              <Palette className="h-4 w-4 shrink-0" />
-              <span className="truncate">
-                Theme:{" "}
-                <span className="text-muted-foreground">{themeLabel}</span>
+    <>
+      <SidebarPrimitive collapsible="icon">
+        <SidebarHeader className="border-b border-sidebar-border">
+          <div className="flex items-center justify-between px-1">
+            <Link href="/" className="flex items-center gap-2">
+              <img
+                src={typeof logoImg === "string" ? logoImg : logoImg.src}
+                alt="SpaceLinear"
+                className="h-[34px] w-[34px] shrink-0 rounded-lg"
+              />
+              <span className="text-base font-semibold text-sidebar-foreground group-data-[collapsible=icon]:hidden">
+                SpaceLinear
               </span>
-            </button>
-            <Link
-              href="/settings"
-              className="flex items-center gap-2.5 rounded-lg p-1 transition-colors hover:bg-accent"
-            >
-              <Avatar className="h-9 w-9">
-                <AvatarFallback className="bg-muted text-xs text-muted-foreground">
-                  {initials}
-                </AvatarFallback>
-              </Avatar>
-              <div className="flex min-w-0 flex-col">
-                <span className="truncate text-sm text-foreground">
-                  {displayName}
+            </Link>
+            <div className="flex items-center gap-1 group-data-[collapsible=icon]:hidden">
+              <button
+                type="button"
+                onClick={() => setShowCreateTopic(true)}
+                className="flex h-7 w-7 items-center justify-center rounded-md text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                aria-label="New topic"
+              >
+                <Plus className="h-4 w-4" />
+              </button>
+              <SidebarTrigger />
+            </div>
+          </div>
+        </SidebarHeader>
+
+        <SidebarContent>
+          <SidebarGroup>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {primaryNavItems.map((item) => (
+                  <SidebarMenuItem key={item.href}>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={isActive(item.href, item.exact)}
+                      tooltip={item.label}
+                    >
+                      <Link href={item.href}>
+                        <item.icon />
+                        <span>{item.label}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+
+          <SidebarSeparator />
+
+          <SidebarGroup>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                <SidebarChatDropdown
+                  isActive={
+                    pathname === "/chat" ||
+                    (pathname?.startsWith("/chat/") ?? false)
+                  }
+                />
+                {secondaryNavItems.map((item) => (
+                  <SidebarMenuItem key={item.href}>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={isActive(item.href)}
+                      tooltip={item.label}
+                    >
+                      <Link href={item.href}>
+                        <item.icon />
+                        <span>{item.label}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        </SidebarContent>
+
+        <SidebarFooter className="border-t border-sidebar-border p-2">
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild tooltip="Settings">
+                <Link href="/settings">
+                  <Settings />
+                  <span>Settings</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                tooltip={`Theme: ${themeLabel}`}
+                onClick={cycleTheme}
+              >
+                <Palette />
+                <span>
+                  Theme:{" "}
+                  <span className="text-sidebar-foreground/60">
+                    {themeLabel}
+                  </span>
                 </span>
-                <span className="text-[10px] text-muted-foreground">Free</span>
-              </div>
-            </Link>
-          </>
-        ) : (
-          <>
-            <Link
-              href="/settings"
-              className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground"
-              aria-label="Settings"
-            >
-              <Settings className="h-4 w-4" />
-            </Link>
-            <button
-              type="button"
-              onClick={cycleTheme}
-              className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground"
-              aria-label={`Theme: ${themeLabel}`}
-            >
-              <Palette className="h-4 w-4" />
-            </button>
-            <button
-              type="button"
-              onClick={toggleSidebar}
-              className="flex w-full items-center justify-center rounded-lg p-1 transition-colors hover:bg-accent"
-              aria-label="Expand sidebar"
-            >
-              <Avatar className="h-7 w-7">
-                <AvatarFallback className="bg-muted text-[10px] text-muted-foreground">
-                  {initials}
-                </AvatarFallback>
-              </Avatar>
-            </button>
-          </>
-        )}
-      </div>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+              <SidebarMenuButton asChild tooltip={displayName}>
+                <Link href="/settings">
+                  <Avatar className="h-5 w-5">
+                    <AvatarFallback className="bg-sidebar-accent text-[8px] text-sidebar-accent-foreground">
+                      {initials}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex flex-col">
+                    <span className="truncate text-sm leading-tight">
+                      {displayName}
+                    </span>
+                    <span className="text-[10px] leading-tight text-sidebar-foreground/60">
+                      Free
+                    </span>
+                  </div>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarFooter>
+      </SidebarPrimitive>
       {showCreateTopic && (
         <CreateTopicModal onClose={() => setShowCreateTopic(false)} />
       )}
-    </aside>
+    </>
   );
 }
