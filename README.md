@@ -1,73 +1,98 @@
-# Welcome to your Lovable project
+# SpaceLinear
 
-## Project info
+Master any hard skill or topic through repetitive study and revision using spaced repetition.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+## Overview
 
-## How can I edit this code?
+SpaceLinear is a Next.js application designed to help you learn and retain knowledge by leveraging spaced repetition techniques. Organize your learning into subjects and topics, review them on a schedule, and track your progress over time.
 
-There are several ways of editing your application.
+## Features
 
-**Use Lovable**
+- **Today's Reviews** — A daily dashboard showing what's due for review so you know exactly what to study.
+- **Subjects & Topics** — Organize your learning materials into structured subjects and individual topics.
+- **Spaced Repetition** — Topics are scheduled for review at optimal intervals to maximize long-term retention.
+- **AI-Powered Chat** — Get explanations, summaries, and study assistance through an integrated AI chat.
+- **Pulse** — Visual insights into your study activity and progress over time.
+- **Custom Settings** — Personalize your learning preferences and account settings.
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+## Tech Stack
 
-Changes made via Lovable will be committed automatically to this repo.
+| Layer          | Technology                                          |
+| -------------- | --------------------------------------------------- |
+| Framework      | [Next.js](https://nextjs.org/) (App Router)         |
+| Language       | [TypeScript](https://www.typescriptlang.org/)       |
+| Styling        | [Tailwind CSS](https://tailwindcss.com/)            |
+| UI Library     | [shadcn/ui](https://ui.shadcn.com/)                 |
+| State Mgmt     | [Zustand](https://zustand-demo.pmnd.rs/)            |
+| Forms          | [React Hook Form](https://react-hook-form.com/) + [Zod](https://zod.dev/) |
+| Backend / Auth | [Supabase](https://supabase.com/)                   |
+| AI Integration | [AI SDK](https://sdk.vercel.ai/) (Groq)             |
+| Testing        | [Vitest](https://vitest.dev/) + [Testing Library](https://testing-library.com/) |
 
-**Use your preferred IDE**
+## Getting Started
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+### Prerequisites
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+- [Node.js](https://nodejs.org/) (install via [nvm](https://github.com/nvm-sh/nvm#installing-and-updating))
+- npm
 
-Follow these steps:
+### Installation
 
 ```sh
-# Step 1: Clone the repository using the project's Git URL.
+# Clone the repository
 git clone <YOUR_GIT_URL>
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+# Navigate to the project directory
+cd spacelinear-next
 
-# Step 3: Install the necessary dependencies.
+# Install dependencies
 npm i
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+# Start the development server
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+The app will be available at [http://localhost:3000](http://localhost:3000).
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+### Commands
 
-**Use GitHub Codespaces**
+| Command              | Description                        |
+| -------------------- | ---------------------------------- |
+| `npm run dev`        | Start the development server       |
+| `npm run build`      | Build for production               |
+| `npm run start`      | Start the production server        |
+| `npm run lint`       | Run ESLint                         |
+| `npm run test`       | Run tests (Vitest)                 |
+| `npm run test:watch` | Run tests in watch mode            |
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+## Project Structure
 
-## What technologies are used for this project?
+```
+src/
+├── app/                # Next.js App Router pages & API routes
+│   ├── (app)/          # Authenticated app pages
+│   │   ├── chat/       # AI chat assistant
+│   │   ├── pulse/      # Study activity insights
+│   │   ├── settings/   # User settings
+│   │   ├── subjects/   # Subject management
+│   │   ├── today/      # Daily review dashboard
+│   │   └── topics/     # Topic management
+│   ├── api/            # API routes (chat, inngest, topics)
+│   └── auth/           # Authentication pages
+├── components/         # Reusable UI components
+├── hooks/              # Custom React hooks
+├── integrations/       # Third-party integrations
+├── lib/                # Utility functions
+├── store/              # Zustand state stores
+├── test/               # Test utilities
+└── views/              # View-level components
+```
 
-This project is built with:
+## Deployment
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+SpaceLinear can be deployed to any platform that supports Next.js, such as Vercel, Netlify, or a custom server.
 
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+```sh
+npm run build
+npm run start
+```
