@@ -64,6 +64,42 @@ export interface Resource {
   createdAt: string;
 }
 
+// ── Material Types ──────────────────────────────────────────────────────
+
+export type MaterialType = "folder" | "file" | "link" | "text";
+
+export interface Material {
+  id: string;
+  userId: string;
+  parentId: string | null;
+  name: string;
+  type: MaterialType;
+  mimeType?: string;
+  fileSize?: number;
+  storagePath?: string;
+  url?: string;
+  content?: string;
+  metadata: Record<string, any>;
+  isStarred: boolean;
+  deletedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// ── Note Types ─────────────────────────────────────────────────────────
+
+export interface Note {
+  id: string;
+  userId: string;
+  title: string;
+  content: string;
+  tags: string[];
+  starred: boolean;
+  deletedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 // ── Chat Types ─────────────────────────────────────────────────────────
 
 export interface Conversation {

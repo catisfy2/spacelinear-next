@@ -222,6 +222,96 @@ export type Database = {
         };
         Relationships: [];
       };
+      notes: {
+        Row: {
+          id: string;
+          user_id: string;
+          title: string;
+          content: string;
+          tags: string[];
+          starred: boolean;
+          deleted_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          title?: string;
+          content?: string;
+          tags?: string[];
+          starred?: boolean;
+          deleted_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          title?: string;
+          content?: string;
+          tags?: string[];
+          starred?: boolean;
+          deleted_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      materials: {
+        Row: {
+          id: string;
+          user_id: string;
+          name: string;
+          type: string;
+          mime_type: string | null;
+          file_size: number | null;
+          storage_path: string | null;
+          url: string | null;
+          content: string | null;
+          parent_id: string | null;
+          is_starred: boolean;
+          deleted_at: string | null;
+          metadata: Json;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          name: string;
+          type: string;
+          mime_type?: string | null;
+          file_size?: number | null;
+          storage_path?: string | null;
+          url?: string | null;
+          content?: string | null;
+          parent_id?: string | null;
+          is_starred?: boolean;
+          deleted_at?: string | null;
+          metadata?: Json;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          name?: string;
+          type?: string;
+          mime_type?: string | null;
+          file_size?: number | null;
+          storage_path?: string | null;
+          url?: string | null;
+          content?: string | null;
+          parent_id?: string | null;
+          is_starred?: boolean;
+          deleted_at?: string | null;
+          metadata?: Json;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       topics: {
         Row: {
           correct_reviews: number;

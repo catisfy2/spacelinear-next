@@ -5,6 +5,9 @@ import type {
   ReviewHistoryEntry,
   Difficulty,
   Resource,
+  Material,
+  MaterialType,
+  Note,
 } from "@/lib/types";
 import { processReview, INITIAL_EASE } from "@/lib/algorithm";
 import { supabase } from "@/integrations/supabase/client";
@@ -68,6 +71,49 @@ interface AppState {
   refreshTopicFromDb: (topicId: string) => Promise<void>;
   scheduleTopicForToday: (topicId: string) => Promise<void>;
   moveToBacklog: (topicId: string) => Promise<void>;
+
+  // Notes
+  notes: Note[];
+
+  fetchNotes: (userId: string) => Promise<void>;
+  createNote: (userId: string) => Promise<Note>;
+  updateNote: (id: string, patch: Partial<Note>) => Promise<void>;
+  toggleNoteStar: (id: string) => Promise<void>;
+  deleteNote: (id: string) => Promise<void>;
+
+  // Materials
+  materials: Material[];
+  currentFolderId: string | null;
+  fetchMaterials: (userId: string, parentId?: string | null) => Promise<void>;
+  fetchMaterialBreadcrumbs: (materialId: string | null) => Promise<Material[]>;
+  createFolder: (
+    name: string,
+    parentId: string | null,
+    userId: string,
+  ) => Promise<Material>;
+  uploadFile: (
+    file: File,
+    parentId: string | null,
+    userId: string,
+  ) => Promise<Material>;
+  addLink: (
+    name: string,
+    url: string,
+    parentId: string | null,
+    userId: string,
+  ) => Promise<Material>;
+  addText: (
+    name: string,
+    content: string,
+    parentId: string | null,
+    userId: string,
+  ) => Promise<Material>;
+  renameMaterial: (id: string, name: string) => Promise<void>;
+  deleteMaterial: (id: string) => Promise<void>;
+  permanentlyDeleteMaterial: (id: string) => Promise<void>;
+  toggleStar: (id: string) => Promise<void>;
+  moveMaterial: (id: string, newParentId: string | null) => Promise<void>;
+  setCurrentFolderId: (folderId: string | null) => void;
 }
 
 function mapResourceRow(row: any): Resource {
@@ -84,6 +130,26 @@ function mapResourceRow(row: any): Resource {
 }
 
 // DB row -> app type mappers
+function mapMaterialRow(row: any): Material {
+  return {
+    id: row.id,
+    userId: row.user_id,
+    parentId: row.parent_id ?? null,
+    name: row.name,
+    type: row.type as Material["type"],
+    mimeType: row.mime_type ?? undefined,
+    fileSize: row.file_size ?? undefined,
+    storagePath: row.storage_path ?? undefined,
+    url: row.url ?? undefined,
+    content: row.content ?? undefined,
+    metadata: row.metadata ?? {},
+    isStarred: row.is_starred ?? false,
+    deletedAt: row.deleted_at ?? undefined,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
 function mapSubjectRow(row: any): Subject {
   return {
     id: row.id,
@@ -117,6 +183,20 @@ function mapTopicRow(row: any): Topic {
   };
 }
 
+function mapNoteRow(row: any): Note {
+  return {
+    id: row.id,
+    userId: row.user_id,
+    title: row.title,
+    content: row.content ?? "",
+    tags: row.tags ?? [],
+    starred: row.starred ?? false,
+    deletedAt: row.deleted_at ?? undefined,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
 function mapHistoryRow(row: any): ReviewHistoryEntry {
   return {
     id: row.id,
@@ -140,6 +220,9 @@ export const useStore = create<AppState>()((set, get) => ({
   sidebarCollapsed: false,
   selectedSidebarTopicId: null,
   loading: true,
+
+  // Notes state
+  notes: [],
 
   toggleSidebar: () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
   setSelectedSidebarTopicId: (id) => set({ selectedSidebarTopicId: id }),
@@ -481,6 +564,283 @@ export const useStore = create<AppState>()((set, get) => ({
         t.id === topicId
           ? { ...t, state: "backlog" as const, nextReviewDate: farFuture }
           : t,
+      ),
+    }));
+  },
+
+  // ── Notes ────────────────────────────────────────────────────────────
+
+  fetchNotes: async (userId) => {
+    const { data } = await supabase
+      .from("notes")
+      .select("*")
+      .eq("user_id", userId)
+      .is("deleted_at", null)
+      .order("updated_at", { ascending: false });
+    set({ notes: (data ?? []).map(mapNoteRow) });
+  },
+
+  createNote: async (userId) => {
+    const { data, error } = await supabase
+      .from("notes")
+      .insert({ user_id: userId })
+      .select()
+      .single();
+    if (error || !data) throw error;
+    const note = mapNoteRow(data);
+    set((s) => ({ notes: [note, ...s.notes] }));
+    return note;
+  },
+
+  updateNote: async (id, patch) => {
+    const dbPatch: Record<string, any> = {};
+    if (patch.title !== undefined) dbPatch.title = patch.title;
+    if (patch.content !== undefined) dbPatch.content = patch.content;
+    if (patch.tags !== undefined) dbPatch.tags = patch.tags;
+    if (patch.starred !== undefined) dbPatch.starred = patch.starred;
+    if (patch.deletedAt !== undefined) dbPatch.deleted_at = patch.deletedAt;
+    dbPatch.updated_at = new Date().toISOString();
+
+    await supabase.from("notes").update(dbPatch).eq("id", id);
+
+    set((s) => ({
+      notes: s.notes.map((n) =>
+        n.id === id ? { ...n, ...patch, updatedAt: dbPatch.updated_at } : n,
+      ),
+    }));
+  },
+
+  toggleNoteStar: async (id) => {
+    const note = get().notes.find((n) => n.id === id);
+    if (!note) return;
+    const newStarred = !note.starred;
+    await supabase
+      .from("notes")
+      .update({ starred: newStarred, updated_at: new Date().toISOString() })
+      .eq("id", id);
+    set((s) => ({
+      notes: s.notes.map((n) =>
+        n.id === id ? { ...n, starred: newStarred } : n,
+      ),
+    }));
+  },
+
+  deleteNote: async (id) => {
+    await supabase
+      .from("notes")
+      .update({
+        deleted_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", id);
+    set((s) => ({
+      notes: s.notes.filter((n) => n.id !== id),
+    }));
+  },
+
+  // ── Materials ────────────────────────────────────────────────────────
+
+  materials: [],
+  currentFolderId: null,
+
+  setCurrentFolderId: (folderId) => set({ currentFolderId: folderId }),
+
+  fetchMaterials: async (userId, parentId = null) => {
+    let query = supabase
+      .from("materials")
+      .select("*")
+      .eq("user_id", userId)
+      .is("deleted_at", null);
+
+    if (parentId === null) {
+      query = query.is("parent_id", null);
+    } else {
+      query = query.eq("parent_id", parentId);
+    }
+
+    const { data } = await query
+      .order("type", { ascending: false })
+      .order("name", { ascending: true });
+    set({ materials: (data ?? []).map(mapMaterialRow) });
+  },
+
+  fetchMaterialBreadcrumbs: async (materialId) => {
+    const crumbs: Material[] = [];
+    let currentId = materialId;
+    while (currentId) {
+      const { data } = await supabase
+        .from("materials")
+        .select("*")
+        .eq("id", currentId)
+        .single();
+      if (!data) break;
+      crumbs.unshift(mapMaterialRow(data));
+      currentId = data.parent_id;
+    }
+    return crumbs;
+  },
+
+  createFolder: async (name, parentId, userId) => {
+    const { data, error } = await supabase
+      .from("materials")
+      .insert({
+        name,
+        type: "folder",
+        parent_id: parentId,
+        user_id: userId,
+      })
+      .select()
+      .single();
+    if (error || !data) throw error;
+    const material = mapMaterialRow(data);
+    set((s) => ({ materials: [...s.materials, material] }));
+    return material;
+  },
+
+  uploadFile: async (file, parentId, userId) => {
+    // Upload to Supabase Storage
+    const filePath = `${userId}/${parentId || "root"}/${crypto.randomUUID()}-${file.name}`;
+    const { error: uploadError } = await supabase.storage
+      .from("materials")
+      .upload(filePath, file);
+    if (uploadError) throw uploadError;
+
+    // Get public URL
+    const { data: urlData } = supabase.storage
+      .from("materials")
+      .getPublicUrl(filePath);
+
+    // Insert DB row
+    const { data, error } = await supabase
+      .from("materials")
+      .insert({
+        name: file.name,
+        type: "file",
+        mime_type: file.type,
+        file_size: file.size,
+        storage_path: filePath,
+        url: urlData.publicUrl,
+        parent_id: parentId,
+        user_id: userId,
+      })
+      .select()
+      .single();
+    if (error || !data) {
+      // Cleanup storage on DB failure
+      await supabase.storage.from("materials").remove([filePath]);
+      throw error;
+    }
+    const material = mapMaterialRow(data);
+    set((s) => ({ materials: [...s.materials, material] }));
+    return material;
+  },
+
+  addLink: async (name, url, parentId, userId) => {
+    const { data, error } = await supabase
+      .from("materials")
+      .insert({
+        name,
+        type: "link",
+        url,
+        parent_id: parentId,
+        user_id: userId,
+      })
+      .select()
+      .single();
+    if (error || !data) throw error;
+    const material = mapMaterialRow(data);
+    set((s) => ({ materials: [...s.materials, material] }));
+    return material;
+  },
+
+  addText: async (name, content, parentId, userId) => {
+    const { data, error } = await supabase
+      .from("materials")
+      .insert({
+        name,
+        type: "text",
+        content,
+        parent_id: parentId,
+        user_id: userId,
+      })
+      .select()
+      .single();
+    if (error || !data) throw error;
+    const material = mapMaterialRow(data);
+    set((s) => ({ materials: [...s.materials, material] }));
+    return material;
+  },
+
+  renameMaterial: async (id, name) => {
+    await supabase.from("materials").update({ name }).eq("id", id);
+    set((s) => ({
+      materials: s.materials.map((m) => (m.id === id ? { ...m, name } : m)),
+    }));
+  },
+
+  deleteMaterial: async (id) => {
+    await supabase
+      .from("materials")
+      .update({ deleted_at: new Date().toISOString() })
+      .eq("id", id);
+    set((s) => ({
+      materials: s.materials.filter((m) => m.id !== id),
+    }));
+  },
+
+  permanentlyDeleteMaterial: async (id) => {
+    // Get the material first to check for storage file
+    const { data: material } = await supabase
+      .from("materials")
+      .select("*")
+      .eq("id", id)
+      .single();
+
+    if (material?.storage_path) {
+      await supabase.storage.from("materials").remove([material.storage_path]);
+    }
+
+    // Recursively delete children first
+    const { data: children } = await supabase
+      .from("materials")
+      .select("id")
+      .eq("parent_id", id);
+
+    if (children) {
+      for (const child of children) {
+        await get().permanentlyDeleteMaterial(child.id);
+      }
+    }
+
+    await supabase.from("materials").delete().eq("id", id);
+    set((s) => ({
+      materials: s.materials.filter((m) => m.id !== id),
+    }));
+  },
+
+  toggleStar: async (id) => {
+    const material = get().materials.find((m) => m.id === id);
+    if (!material) return;
+    const newStarred = !material.isStarred;
+    await supabase
+      .from("materials")
+      .update({ is_starred: newStarred })
+      .eq("id", id);
+    set((s) => ({
+      materials: s.materials.map((m) =>
+        m.id === id ? { ...m, isStarred: newStarred } : m,
+      ),
+    }));
+  },
+
+  moveMaterial: async (id, newParentId) => {
+    await supabase
+      .from("materials")
+      .update({ parent_id: newParentId })
+      .eq("id", id);
+    set((s) => ({
+      materials: s.materials.map((m) =>
+        m.id === id ? { ...m, parentId: newParentId } : m,
       ),
     }));
   },
