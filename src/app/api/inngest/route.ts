@@ -1,8 +1,11 @@
 import { serve } from 'inngest/next';
 import { inngest } from '@/lib/inngest/client';
-import { generateTopicContent } from '@/lib/inngest/functions';
+import {
+  generateTopicContent,
+  generateQuizFromMaterial,
+} from '@/lib/inngest/functions';
 
 export const { GET, POST, PUT } = serve({
   client: inngest,
-  functions: [generateTopicContent],
+  functions: [generateTopicContent, generateQuizFromMaterial],
 });

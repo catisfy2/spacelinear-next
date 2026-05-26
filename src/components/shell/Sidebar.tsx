@@ -13,6 +13,7 @@ import {
   Palette,
   FileText,
   StickyNote,
+  HelpCircle,
 } from "lucide-react";
 
 import logoImg from "@/assets/icon-spacelinear.png";
@@ -81,6 +82,7 @@ export function Sidebar() {
   ];
 
   const secondaryNavItems = [
+    { href: "/quiz", label: "Quiz", icon: HelpCircle },
     { href: "/materials", label: "Materials", icon: FileText },
     { href: "/notes", label: "Notes", icon: StickyNote },
   ];

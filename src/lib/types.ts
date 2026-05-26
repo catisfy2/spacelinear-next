@@ -117,3 +117,40 @@ export interface Message {
   content: string;
   createdAt: string;
 }
+
+// ── Quiz Types ─────────────────────────────────────────────────────────
+
+export interface Quiz {
+  id: string;
+  question: string;
+  options: string[];
+  answer: string;
+  tags: string[];
+  subject?: string;
+  topic?: string;
+  materialId?: string;
+  createdBy?: string;
+  createdAt: string;
+}
+
+export interface QuizAttempt {
+  id: string;
+  userId: string;
+  quizId: string;
+  selectedAnswer: string;
+  isCorrect: boolean;
+  tags: string[];
+  attemptedAt: string;
+}
+
+export interface GapAnalysis {
+  tag: string;
+  totalAttempts: number;
+  correctCount: number;
+  accuracy: number;
+}
+
+export interface QuizFilters {
+  subject?: string;
+  topic?: string;
+}

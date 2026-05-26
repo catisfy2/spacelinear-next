@@ -312,6 +312,91 @@ export type Database = {
         };
         Relationships: [];
       };
+      quiz_attempts: {
+        Row: {
+          id: string;
+          user_id: string;
+          quiz_id: string;
+          selected_answer: string;
+          is_correct: boolean;
+          tags: string[];
+          attempted_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          quiz_id: string;
+          selected_answer: string;
+          is_correct: boolean;
+          tags?: string[];
+          attempted_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          quiz_id?: string;
+          selected_answer?: string;
+          is_correct?: boolean;
+          tags?: string[];
+          attempted_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "quiz_attempts_quiz_id_fkey";
+            columns: ["quiz_id"];
+            isOneToOne: false;
+            referencedRelation: "quizzes";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      quizzes: {
+        Row: {
+          id: string;
+          question: string;
+          options: Json;
+          answer: string;
+          tags: string[];
+          subject: string | null;
+          topic: string | null;
+          material_id: string | null;
+          created_by: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          question: string;
+          options: Json;
+          answer: string;
+          tags?: string[];
+          subject?: string | null;
+          topic?: string | null;
+          material_id?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          question?: string;
+          options?: Json;
+          answer?: string;
+          tags?: string[];
+          subject?: string | null;
+          topic?: string | null;
+          material_id?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "quizzes_material_id_fkey";
+            columns: ["material_id"];
+            isOneToOne: false;
+            referencedRelation: "materials";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       topics: {
         Row: {
           correct_reviews: number;
