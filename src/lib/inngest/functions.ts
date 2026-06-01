@@ -1,7 +1,7 @@
-import { inngest } from './client';
-import { groq } from '@ai-sdk/groq';
-import { generateText } from 'ai';
-import { getSupabaseAdmin } from '@/lib/supabase-server';
+import { inngest } from "./client";
+import { groq } from "@ai-sdk/groq";
+import { generateText } from "ai";
+import { getSupabaseAdmin } from "@/lib/supabase-server";
 
 interface GeneratedQuiz {
   question: string;
@@ -37,45 +37,45 @@ function parseJsonFromAi(text: string): { quizzes: GeneratedQuiz[] } {
 async function getMaterialContent(materialId: string): Promise<string> {
   const admin = getSupabaseAdmin();
   const { data: material, error } = await admin
-    .from('materials')
-    .select('*')
-    .eq('id', materialId)
+    .from("materials")
+    .select("*")
+    .eq("id", materialId)
     .single();
 
   if (error || !material) {
     throw new Error(`Material not found: ${materialId}`);
   }
 
-  if (material.type === 'text' && material.content) {
+  if (material.type === "text" && material.content) {
     return material.content.slice(0, 8000);
   }
 
-  if (material.type === 'link') {
-    return `Link title: ${material.name}\nURL: ${material.url ?? 'unknown'}`;
+  if (material.type === "link") {
+    return `Link title: ${material.name}\nURL: ${material.url ?? "unknown"}`;
   }
 
-  if (material.type === 'file' && material.storage_path) {
+  if (material.type === "file" && material.storage_path) {
     const { data: blob, error: downloadError } = await admin.storage
-      .from('materials')
+      .from("materials")
       .download(material.storage_path);
 
     if (downloadError || !blob) {
-      return `File: ${material.name} (${material.mime_type ?? 'unknown type'})`;
+      return `File: ${material.name} (${material.mime_type ?? "unknown type"})`;
     }
 
-    const mime = material.mime_type ?? '';
+    const mime = material.mime_type ?? "";
     const isTextLike =
-      mime.startsWith('text/') ||
-      mime === 'application/json' ||
-      material.name.endsWith('.md') ||
-      material.name.endsWith('.txt');
+      mime.startsWith("text/") ||
+      mime === "application/json" ||
+      material.name.endsWith(".md") ||
+      material.name.endsWith(".txt");
 
     if (isTextLike) {
       const text = await blob.text();
       return text.slice(0, 8000);
     }
 
-    return `File: ${material.name} (${material.mime_type ?? 'unknown type'})`;
+    return `File: ${material.name} (${material.mime_type ?? "unknown type"})`;
   }
 
   return material.name;
@@ -114,9 +114,9 @@ function buildSubjectTopicPrompt(catalog: SubjectTopicCatalog): string {
         return `- ${subject.name}`;
       }
 
-      return `- ${subject.name}\n  ${subjectTopics.map((topic) => `- ${topic}`).join('\n  ')}`;
+      return `- ${subject.name}\n  ${subjectTopics.map((topic) => `- ${topic}`).join("\n  ")}`;
     })
-    .join('\n');
+    .join("\n");
 
   return `Use ONLY these existing subject and topic names (copy them exactly):
 ${grouped}
@@ -170,16 +170,16 @@ function resolveQuizSubjectTopic(
 
 export const generateTopicContent = inngest.createFunction(
   {
-    id: 'generate-topic-content',
-    triggers: { event: 'topic/ai.generate' },
+    id: "generate-topic-content",
+    triggers: { event: "topic/ai.generate" },
   },
   async ({ event, step }) => {
     const { topicId, title, subjectName } = event.data;
 
-    const result = await step.run('generate-ai-content', async () => {
+    const result = await step.run("generate-ai-content", async () => {
       const { text } = await generateText({
-        model: groq('llama-3.3-70b-versatile'),
-        prompt: `Generate learning content for a topic titled "${title}"${subjectName ? ` under the subject "${subjectName}"` : ''}.
+        model: groq("llama-3.3-70b-versatile"),
+        prompt: `Generate learning content for a topic titled "${title}"${subjectName ? ` under the subject "${subjectName}"` : ""}.
 
 Return a JSON object with exactly two fields:
 - "description": a 1-2 sentence explanation of the concept
@@ -197,14 +197,14 @@ Return ONLY valid JSON, no other text.`,
       return JSON.parse(text) as { description: string; tags: string[] };
     });
 
-    await step.run('update-topic', async () => {
+    await step.run("update-topic", async () => {
       await getSupabaseAdmin()
-        .from('topics')
+        .from("topics")
         .update({
           description: result.description,
           tags: result.tags,
         })
-        .eq('id', topicId);
+        .eq("id", topicId);
     });
 
     return { topicId, description: result.description, tags: result.tags };
@@ -213,8 +213,8 @@ Return ONLY valid JSON, no other text.`,
 
 export const generateQuizFromMaterial = inngest.createFunction(
   {
-    id: 'generate-quiz-from-material',
-    triggers: { event: 'material/quiz.generate' },
+    id: "generate-quiz-from-material",
+    triggers: { event: "material/quiz.generate" },
   },
   async ({ event, step }) => {
     const { materialId, materialName, userId, subjectTopicCatalog } =
@@ -230,15 +230,15 @@ export const generateQuizFromMaterial = inngest.createFunction(
       topics: [],
     };
 
-    const materialContent = await step.run('fetch-material-content', async () =>
+    const materialContent = await step.run("fetch-material-content", async () =>
       getMaterialContent(materialId),
     );
 
     const subjectTopicInstructions = buildSubjectTopicPrompt(catalog);
 
-    const generated = await step.run('generate-quiz-questions', async () => {
+    const generated = await step.run("generate-quiz-questions", async () => {
       const { text } = await generateText({
-        model: groq('llama-3.3-70b-versatile'),
+        model: groq("llama-3.3-70b-versatile"),
         prompt: `You are an educational quiz generator. Based on the following study material, create 10-15 multiple-choice quiz questions.
 
 Material title: "${materialName}"
@@ -289,12 +289,15 @@ Return ONLY valid JSON, no other text.`,
       .slice(0, 15);
 
     if (quizzes.length === 0) {
-      throw new Error('AI did not return valid quiz questions');
+      throw new Error("AI did not return valid quiz questions");
     }
 
-    await step.run('insert-quizzes', async () => {
+    await step.run("insert-quizzes", async () => {
       const rows = quizzes.map((quiz) => {
-        const { subject, topic } = resolveQuizSubjectTopic(quiz, catalog);
+        const { subject, topic } = resolveQuizSubjectTopic(
+          quiz as GeneratedQuiz,
+          catalog,
+        );
 
         return {
           question: quiz.question,
@@ -308,7 +311,7 @@ Return ONLY valid JSON, no other text.`,
         };
       });
 
-      const { error } = await getSupabaseAdmin().from('quizzes').insert(rows);
+      const { error } = await getSupabaseAdmin().from("quizzes").insert(rows);
       if (error) throw error;
     });
 
