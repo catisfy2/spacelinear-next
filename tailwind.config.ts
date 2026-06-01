@@ -89,13 +89,15 @@ export default {
   				border: 'hsl(var(--sidebar-border))',
   				ring: 'hsl(var(--sidebar-ring))'
   			},
-  			sl: {
-  				relearn: 'hsl(var(--sl-relearn))',
-  				hard: 'hsl(var(--sl-hard))',
-  				medium: 'hsl(var(--sl-medium))',
-  				easy: 'hsl(var(--sl-easy))',
-  				new: 'hsl(var(--sl-new))'
-  			}
+			sl: {
+				relearn: 'hsl(var(--sl-relearn))',
+				hard: 'hsl(var(--sl-hard))',
+				medium: 'hsl(var(--sl-medium))',
+				easy: 'hsl(var(--sl-easy))',
+				new: 'hsl(var(--sl-new))',
+				'surface-hover': 'hsl(var(--sl-surface-hover))',
+				'surface-active': 'hsl(var(--sl-surface-active))'
+			}
   		},
   		borderRadius: {
   			lg: 'var(--radius)',
