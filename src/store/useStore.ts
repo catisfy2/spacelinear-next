@@ -807,10 +807,20 @@ export const useStore = create<AppState>()((set, get) => ({
   },
 
   renameMaterial: async (id, name) => {
+    const oldMaterial = get().materials.find((m) => m.id === id);
+    const oldName = oldMaterial?.name;
+
     await supabase.from("materials").update({ name }).eq("id", id);
     set((s) => ({
       materials: s.materials.map((m) => (m.id === id ? { ...m, name } : m)),
     }));
+
+    // Sync question set title if it was named after this material
+    if (oldName) {
+      const oldTitle = `Quiz: ${oldName}`;
+      const newTitle = `Quiz: ${name}`;
+      await (supabase as any).from("question_sets").update({ title: newTitle }).eq("title", oldTitle);
+    }
   },
 
   deleteMaterial: async (id) => {
@@ -998,6 +1008,7 @@ export const useStore = create<AppState>()((set, get) => ({
     const maxAttempts = 30;
     const interval = setInterval(async () => {
       attempts += 1;
+      // Check the old quizzes table (Inngest inserts into both old and new tables)
       const { count } = await supabase
         .from("quizzes")
         .select("*", { count: "exact", head: true })

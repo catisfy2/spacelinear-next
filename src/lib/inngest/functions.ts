@@ -10,6 +10,8 @@ interface GeneratedQuiz {
   tags: string[];
   subject?: string;
   topic?: string;
+  difficulty?: string;
+  explanation?: string;
 }
 
 interface SubjectTopicCatalog {
@@ -256,6 +258,8 @@ Return a JSON object with a "quizzes" array. Each quiz item must have:
 - "tags": array of 2-4 lowercase hyphenated concept tags related to the question
 - "subject": subject name string
 - "topic": topic name string
+- "difficulty": classify as "easy", "medium", or "hard"
+- "explanation": a brief explanation of why the answer is correct
 
 Example:
 {
@@ -266,7 +270,9 @@ Example:
       "answer": "F = ma",
       "tags": ["physics", "newton-laws", "force"],
       "subject": "Physics",
-      "topic": "Mechanics"
+      "topic": "Mechanics",
+      "difficulty": "easy",
+      "explanation": "Newton's second law states that force equals mass times acceleration."
     }
   ]
 }
@@ -277,7 +283,7 @@ Return ONLY valid JSON, no other text.`,
       return parseJsonFromAi(text);
     });
 
-    const quizzes = generated.quizzes
+    const quizzes: GeneratedQuiz[] = (generated.quizzes ?? [])
       .filter(
         (quiz) =>
           quiz.question &&
@@ -286,16 +292,69 @@ Return ONLY valid JSON, no other text.`,
           quiz.answer &&
           quiz.options.includes(quiz.answer),
       )
-      .slice(0, 15);
+      .slice(0, 15) as GeneratedQuiz[];
 
     if (quizzes.length === 0) {
       throw new Error('AI did not return valid quiz questions');
     }
 
-    await step.run('insert-quizzes', async () => {
+    // Resolve topic_id for scoping
+    let resolvedTopicId: string | null = null;
+    if (catalog.topics.length > 0) {
+      const firstQuiz = quizzes[0];
+      const { topic } = resolveQuizSubjectTopic(firstQuiz, catalog);
+      if (topic) {
+        const matchedTopic = catalog.topics.find(
+          (t) => t.title === topic || t.title.toLowerCase() === topic.toLowerCase(),
+        );
+        if (matchedTopic) {
+          resolvedTopicId = matchedTopic.id;
+        }
+      }
+    }
+
+    const setTitle = `Quiz: ${materialName}`;
+
+    let questionSetId: string | undefined;
+
+    await step.run('insert-question-set', async () => {
+      const { data, error } = await (getSupabaseAdmin() as any)
+        .from('question_sets')
+        .insert({
+          user_id: userId,
+          topic_id: resolvedTopicId,
+          title: setTitle,
+          question_count: quizzes.length,
+          difficulty: 'mixed',
+        })
+        .select('id')
+        .single();
+      if (error) throw error;
+      questionSetId = data.id;
+    });
+
+    await step.run('insert-questions', async () => {
+      const rows = quizzes.map((quiz, idx) => ({
+        question_set_id: questionSetId,
+        question: quiz.question,
+        options: quiz.options,
+        answer: quiz.answer,
+        explanation: quiz.explanation ?? null,
+        difficulty: ['easy', 'medium', 'hard'].includes(quiz.difficulty ?? '')
+          ? quiz.difficulty
+          : 'medium',
+        tags: quiz.tags ?? [],
+        order: idx,
+      }));
+
+      const { error } = await (getSupabaseAdmin() as any).from('questions').insert(rows);
+      if (error) throw error;
+    });
+
+    // Backward compatibility: also insert into old quizzes table
+    await step.run('insert-legacy-quizzes', async () => {
       const rows = quizzes.map((quiz) => {
         const { subject, topic } = resolveQuizSubjectTopic(quiz, catalog);
-
         return {
           question: quiz.question,
           options: quiz.options,
@@ -307,11 +366,9 @@ Return ONLY valid JSON, no other text.`,
           created_by: userId,
         };
       });
-
-      const { error } = await getSupabaseAdmin().from('quizzes').insert(rows);
-      if (error) throw error;
+      await getSupabaseAdmin().from('quizzes').insert(rows);
     });
 
-    return { materialId, count: quizzes.length };
+    return { materialId, count: quizzes.length, questionSetTitle: setTitle };
   },
 );
