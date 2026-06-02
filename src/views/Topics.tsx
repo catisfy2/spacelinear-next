@@ -1,226 +1,476 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
-import { useStore } from "@/store/useStore";
-import type { TopicState, Subject } from "@/lib/types";
-import { Plus, Search } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { CreateTopicModal } from "@/components/topics/CreateTopicModal";
-import { CreateSubjectModal } from "@/components/subjects/CreateSubjectModal";
-import { useSearchParams } from "next/navigation";
-import { Input } from "@/components/ui/input";
+import { useState, useMemo, useCallback } from "react";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { PageHeader } from "@/components/app/PageHeader";
-import { PageShell } from "@/components/app/PageShell";
-import { EmptyState } from "@/components/app/EmptyState";
+  ChevronDown,
+  ChevronRight,
+  ChevronUp,
+  ListFilter,
+  SlidersHorizontal,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { useStore } from "@/store/useStore";
+import { DIFFICULTY_CONFIG } from "@/lib/constants";
+import type { Difficulty, Topic } from "@/lib/types";
 import { TopicRow } from "@/components/app/TopicRow";
-import { Button } from "@/components/ui/button";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Command, CommandGroup, CommandItem } from "@/components/ui/command";
+import { Checkbox } from "@/components/ui/checkbox";
+import { EmptyState } from "@/components/app/EmptyState";
 
-/** Preserve the previous grouped view order when flattening the list. */
-const STATE_RANK: Record<TopicState, number> = {
-  backlog: 4,
-  relearning: 0,
-  learning: 1,
-  new: 2,
-  reviewing: 3,
-};
+// ── Constants ────────────────────────────────────────────────────────────────
 
-type StateFilter = "all" | "due" | "backlog" | TopicState;
+type ChipFilter = "all" | "due" | "backlog";
 
-const FILTER_CHIPS: { id: StateFilter; label: string }[] = [
+type SortOption = "due" | "reviewed" | "created" | "alpha";
+
+const CHIPS: { id: ChipFilter; label: string }[] = [
   { id: "all", label: "All" },
   { id: "due", label: "Due" },
-  { id: "new", label: "New" },
-  { id: "learning", label: "Learning" },
-  { id: "reviewing", label: "Reviewing" },
-  { id: "relearning", label: "Relearning" },
   { id: "backlog", label: "Backlog" },
 ];
 
+const SORT_OPTIONS: { id: SortOption; label: string }[] = [
+  { id: "due", label: "Due date" },
+  { id: "reviewed", label: "Recently reviewed" },
+  { id: "created", label: "Recently created" },
+  { id: "alpha", label: "A–Z" },
+];
+
+const DIFFICULTIES: Difficulty[] = ["relearn", "hard", "medium", "easy"];
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function isDueTopic(topic: Topic): boolean {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const d = new Date(topic.nextReviewDate);
+  d.setHours(0, 0, 0, 0);
+  return d < tomorrow;
+}
+
+// ── Component ─────────────────────────────────────────────────────────────────
+
 export function TopicsPage() {
-  const { topics, subjects, getDueTopics } = useStore();
-  const [showCreateTopic, setShowCreateTopic] = useState(false);
-  const [showCreateSubject, setShowCreateSubject] = useState(false);
-  const searchParams = useSearchParams();
-  const [filterSubjectId, setFilterSubjectId] = useState<string>("all");
-  const [stateFilter, setStateFilter] = useState<StateFilter>("all");
-  const [search, setSearch] = useState("");
+  const { topics, subjects } = useStore();
 
-  useEffect(() => {
-    if (searchParams.get("create-subject") === "true") {
-      setShowCreateSubject(true);
-    }
-  }, [searchParams]);
-
-  const dueIdSet = useMemo(
-    () => new Set(getDueTopics().map((t) => t.id)),
-    [getDueTopics, topics],
+  const [chipFilter, setChipFilter] = useState<ChipFilter>("all");
+  const [selectedSubjectIds, setSelectedSubjectIds] = useState<Set<string>>(
+    new Set(),
   );
+  const [selectedDifficulties, setSelectedDifficulties] = useState<
+    Set<Difficulty>
+  >(new Set());
+  const [sortBy, setSortBy] = useState<SortOption>("due");
+
+  const [learningOpen, setLearningOpen] = useState(true);
+  const [backlogOpen, setBacklogOpen] = useState(false);
+
+  const [selectedTopicIds, setSelectedTopicIds] = useState<Set<string>>(
+    new Set(),
+  );
+
+  // ── Filtering & Sorting ───────────────────────────────────────────────────
 
   const filteredTopics = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    let result = topics;
+    let result = [...topics];
 
-    if (filterSubjectId !== "all") {
-      result = result.filter((t) => t.subjectId === filterSubjectId);
+    if (chipFilter === "due") {
+      result = result.filter(isDueTopic);
+    } else if (chipFilter === "backlog") {
+      result = result.filter((t) => t.state === "backlog" || t.state === "new");
     }
 
-    if (stateFilter === "due") {
-      result = result.filter((t) => dueIdSet.has(t.id));
-    } else if (stateFilter === "backlog") {
-      const cutoff = new Date();
-      cutoff.setDate(cutoff.getDate() + 30);
-      result = result.filter((t) => new Date(t.nextReviewDate) > cutoff);
-    } else if (stateFilter !== "all") {
-      result = result.filter((t) => t.state === stateFilter);
+    if (selectedSubjectIds.size > 0) {
+      result = result.filter((t) => selectedSubjectIds.has(t.subjectId));
     }
 
-    if (q) {
-      result = result.filter((t) => {
-        const subj = subjects.find((s) => s.id === t.subjectId);
-        const inTitle = t.title.toLowerCase().includes(q);
-        const inSubject = subj?.name.toLowerCase().includes(q);
-        return inTitle || inSubject;
-      });
+    if (selectedDifficulties.size > 0) {
+      result = result.filter(
+        (t) =>
+          t.currentDifficulty && selectedDifficulties.has(t.currentDifficulty),
+      );
     }
+
+    result.sort((a, b) => {
+      switch (sortBy) {
+        case "due":
+          return (
+            new Date(a.nextReviewDate).getTime() -
+            new Date(b.nextReviewDate).getTime()
+          );
+        case "reviewed":
+          return (
+            new Date(b.lastReviewedAt ?? b.createdAt).getTime() -
+            new Date(a.lastReviewedAt ?? a.createdAt).getTime()
+          );
+        case "created":
+          return (
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          );
+        case "alpha":
+          return a.title.localeCompare(b.title);
+      }
+    });
 
     return result;
-  }, [topics, subjects, filterSubjectId, stateFilter, search, dueIdSet]);
+  }, [topics, chipFilter, selectedSubjectIds, selectedDifficulties, sortBy]);
 
-  const displayTopics = useMemo(
-    () =>
-      [...filteredTopics].sort(
-        (a, b) => STATE_RANK[a.state] - STATE_RANK[b.state],
-      ),
-    [filteredTopics],
+  // ── Grouping ──────────────────────────────────────────────────────────────
+
+  const { learningTopics, backlogTopics } = useMemo(() => {
+    const learning: Topic[] = [];
+    const backlog: Topic[] = [];
+    for (const t of filteredTopics) {
+      if (t.state === "backlog" || t.state === "new") {
+        backlog.push(t);
+      } else {
+        learning.push(t);
+      }
+    }
+    return { learningTopics: learning, backlogTopics: backlog };
+  }, [filteredTopics]);
+
+  // ── Filter Toggles ────────────────────────────────────────────────────────
+
+  const toggleSubject = useCallback((id: string) => {
+    setSelectedSubjectIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const toggleDifficulty = useCallback((d: Difficulty) => {
+    setSelectedDifficulties((prev) => {
+      const next = new Set(prev);
+      if (next.has(d)) next.delete(d);
+      else next.add(d);
+      return next;
+    });
+  }, []);
+
+  const toggleTopicSelection = useCallback((id: string) => {
+    setSelectedTopicIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const activeFilterCount =
+    (chipFilter !== "all" ? 1 : 0) +
+    selectedSubjectIds.size +
+    selectedDifficulties.size;
+
+  // ── Render helpers ────────────────────────────────────────────────────────
+
+  const subjectMap = useMemo(
+    () => new Map(subjects.map((s) => [s.id, s])),
+    [subjects],
   );
 
-  return (
-    <>
-      <PageShell>
-        <div className="border-b border-border pb-6">
-          <PageHeader
-            title="Topics"
-            description="Search, filter, and open any topic."
-            actions={
-              <>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="rounded-lg"
-                  onClick={() => setShowCreateSubject(true)}
-                >
-                  <Plus className="mr-1.5 h-3.5 w-3.5" /> Subject
-                </Button>
-                <Button
-                  size="sm"
-                  className="rounded-lg"
-                  onClick={() => setShowCreateTopic(true)}
-                >
-                  <Plus className="mr-1.5 h-3.5 w-3.5" /> Topic
-                </Button>
-              </>
-            }
-          />
+  const renderTopics = (topicList: Topic[]) =>
+    topicList.map((topic) => (
+      <TopicRow
+        key={topic.id}
+        topic={topic}
+        subject={subjectMap.get(topic.subjectId)}
+        selected={selectedTopicIds.has(topic.id)}
+        onToggle={toggleTopicSelection}
+      />
+    ));
 
-          <div className="relative mb-4">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search topics or subjects…"
-              className="rounded-lg pl-9"
-              aria-label="Search topics"
-            />
-          </div>
+  // ── Empty state ───────────────────────────────────────────────────────────
 
-          <div className="mb-4 flex flex-wrap items-center gap-2">
-            <Select value={filterSubjectId} onValueChange={setFilterSubjectId}>
-              <SelectTrigger className="w-[200px] rounded-lg">
-                <SelectValue placeholder="Subject" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All subjects</SelectItem>
-                {subjects.map((s) => (
-                  <SelectItem key={s.id} value={s.id}>
-                    {s.icon} {s.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+  if (topics.length === 0) {
+    return (
+      <div className="flex items-center justify-center size-full p-6">
+        <EmptyState
+          icon={"📚"}
+          title="No topics yet"
+          description="Create a subject and add topics to start your spaced repetition journey."
+          className="min-h-[50vh]"
+        />
+      </div>
+    );
+  }
 
-          <div className="flex flex-wrap gap-1.5">
-            {FILTER_CHIPS.map((chip) => (
-              <button
-                key={chip.id}
-                type="button"
-                onClick={() => setStateFilter(chip.id)}
-                className={cn(
-                  "rounded-lg px-3 py-1.5 text-xs font-medium transition-colors",
-                  stateFilter === chip.id
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-muted text-muted-foreground hover:bg-accent hover:text-foreground",
-                )}
-              >
-                {chip.label}
-              </button>
-            ))}
+  if (filteredTopics.length === 0) {
+    return (
+      <div className="flex flex-col gap-[4px] items-center px-[22px] py-[16px] size-full bg-background">
+        <div className="flex items-center p-[10px] w-full">
+          <div className="flex items-center gap-[10px]">
+            <h1 className="font-normal text-[22px] text-foreground">Topics</h1>
+            <ChevronRight className="h-[12px] w-[6px] text-muted-foreground" />
           </div>
         </div>
+        <EmptyState
+          title="No matches"
+          description="Try a different filter or check back later."
+          className="min-h-[40vh]"
+          primaryAction={
+            <button
+              type="button"
+              onClick={() => {
+                setChipFilter("all");
+                setSelectedSubjectIds(new Set());
+                setSelectedDifficulties(new Set());
+              }}
+              className="text-sm text-muted-foreground underline underline-offset-2 hover:text-foreground"
+            >
+              Clear all filters
+            </button>
+          }
+        />
+      </div>
+    );
+  }
 
-        {topics.length === 0 ? (
-          <EmptyState
-            className="min-h-[50vh]"
-            icon="📚"
-            title="No topics yet"
-            description="Create a subject first, then add topics to start your spaced repetition journey."
-            primaryAction={
-              <Button onClick={() => setShowCreateSubject(true)}>
-                <Plus className="mr-2 h-4 w-4" /> Create subject
-              </Button>
-            }
-          />
-        ) : filteredTopics.length === 0 ? (
-          <EmptyState
-            className="min-h-[40vh]"
-            title="No matches"
-            description="Try another filter or search term."
-            primaryAction={
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setSearch("");
-                  setStateFilter("all");
-                  setFilterSubjectId("all");
-                }}
-              >
-                Clear filters
-              </Button>
-            }
-          />
-        ) : (
-          <div className="overflow-hidden rounded-lg border border-border">
-            {displayTopics.map((topic) => {
-              const subj = subjects.find((s) => s.id === topic.subjectId);
-              return <TopicRow key={topic.id} topic={topic} subject={subj} />;
-            })}
+  // ── Main render ──────────────────────────────────────────────────────────
+
+  return (
+    <div className="flex flex-col gap-[4px] items-center px-[22px] py-[16px] size-full bg-background">
+      {/* ── Breadcrumb ───────────────────────────────────────────────────── */}
+      <div className="flex items-center p-[10px] w-full">
+        <div className="flex items-center gap-[10px]">
+          <h1 className="font-normal text-[22px] text-foreground">Topics</h1>
+          <ChevronRight className="h-[12px] w-[6px] text-muted-foreground" />
+        </div>
+      </div>
+
+      {/* ── Main Body ────────────────────────────────────────────────────── */}
+      <div className="flex flex-col gap-[32px] items-start w-full">
+        {/* ── Filter Bar ───────────────────────────────────────────────────── */}
+        <div className="flex items-center justify-between w-full">
+          <div className="flex items-center gap-[16px]">
+            <div className="flex items-center gap-[12px]">
+              {CHIPS.map((chip) => (
+                <button
+                  key={chip.id}
+                  type="button"
+                  onClick={() => setChipFilter(chip.id)}
+                  className={cn(
+                    "flex items-center justify-center px-[18px] py-[6px] rounded-full text-[12px] font-medium transition-colors bg-muted",
+                    chipFilter === chip.id
+                      ? "text-foreground"
+                      : "text-muted-foreground hover:bg-muted-foreground/10",
+                  )}
+                >
+                  {chip.label}
+                </button>
+              ))}
+            </div>
+
+            {/* More filter options */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  className="flex items-center justify-center size-[18px] text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <SlidersHorizontal className="size-full" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-48">
+                <DropdownMenuLabel>Difficulty</DropdownMenuLabel>
+                {DIFFICULTIES.map((d) => (
+                  <DropdownMenuCheckboxItem
+                    key={d}
+                    checked={selectedDifficulties.has(d)}
+                    onCheckedChange={() => toggleDifficulty(d)}
+                  >
+                    {DIFFICULTY_CONFIG[d].label}
+                  </DropdownMenuCheckboxItem>
+                ))}
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel>Sort by</DropdownMenuLabel>
+                {SORT_OPTIONS.map((opt) => (
+                  <DropdownMenuCheckboxItem
+                    key={opt.id}
+                    checked={sortBy === opt.id}
+                    onCheckedChange={() => setSortBy(opt.id)}
+                  >
+                    {opt.label}
+                  </DropdownMenuCheckboxItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
-        )}
-      </PageShell>
 
-      {showCreateTopic && (
-        <CreateTopicModal onClose={() => setShowCreateTopic(false)} />
-      )}
-      {showCreateSubject && (
-        <CreateSubjectModal onClose={() => setShowCreateSubject(false)} />
-      )}
-    </>
+          <div className="flex items-center gap-[16px]">
+            {/* Subject multi-select */}
+            <Popover>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  className={cn(
+                    "flex items-center gap-[10px] bg-muted px-[18px] py-[6px] rounded-full text-[12px] font-medium transition-colors hover:bg-muted-foreground/10",
+                    selectedSubjectIds.size > 0
+                      ? "text-foreground"
+                      : "text-muted-foreground",
+                  )}
+                >
+                  {selectedSubjectIds.size > 0
+                    ? `${selectedSubjectIds.size} subject${selectedSubjectIds.size > 1 ? "s" : ""}`
+                    : "Select Subject"}
+                  <ChevronDown className="h-[6px] w-[12px]" />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-56 p-0" align="end">
+                <Command>
+                  <CommandGroup>
+                    {subjects.map((subject) => (
+                      <CommandItem
+                        key={subject.id}
+                        onSelect={() => toggleSubject(subject.id)}
+                        className="flex items-center gap-2"
+                      >
+                        <Checkbox
+                          checked={selectedSubjectIds.has(subject.id)}
+                          className="size-4"
+                        />
+                        <span>
+                          {subject.icon} {subject.name}
+                        </span>
+                      </CommandItem>
+                    ))}
+                    {subjects.length === 0 && (
+                      <div className="px-2 py-4 text-center text-sm text-muted-foreground">
+                        No subjects yet
+                      </div>
+                    )}
+                  </CommandGroup>
+                </Command>
+              </PopoverContent>
+            </Popover>
+
+            {/* Filter button */}
+            <button
+              type="button"
+              className={cn(
+                "relative flex items-center justify-center size-[26px] transition-colors",
+                activeFilterCount > 0
+                  ? "text-primary"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+              title={
+                activeFilterCount > 0
+                  ? `${activeFilterCount} filter${activeFilterCount > 1 ? "s" : ""} active`
+                  : "No active filters"
+              }
+            >
+              <ListFilter className="size-full" />
+              {activeFilterCount > 0 && (
+                <span className="absolute -top-1 -right-1 flex items-center justify-center size-4 rounded-full bg-primary text-[10px] text-primary-foreground font-medium leading-none">
+                  {activeFilterCount}
+                </span>
+              )}
+            </button>
+          </div>
+        </div>
+        {/* Learning Section */}
+        <Collapsible
+          open={learningOpen}
+          onOpenChange={setLearningOpen}
+          className="w-full"
+        >
+          <CollapsibleTrigger asChild>
+            <button
+              type="button"
+              className="flex w-full items-center justify-between px-[20px] py-[8px] bg-muted rounded-[22px] transition-colors hover:bg-muted/80"
+            >
+              <span className="font-medium text-[14px] text-foreground">
+                Learning
+              </span>
+              <ChevronDown
+                className={cn(
+                  "h-[14px] w-[14px] text-muted-foreground transition-transform",
+                  learningOpen ? "" : "-rotate-90",
+                )}
+              />
+            </button>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="w-full">
+            <div className="flex flex-col gap-[6px] items-start w-full pt-1">
+              {learningTopics.length > 0 ? (
+                renderTopics(learningTopics)
+              ) : (
+                <div className="w-full px-[14px] py-[24px] text-center text-sm text-muted-foreground">
+                  No topics currently learning
+                </div>
+              )}
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
+
+        {/* Backlog Section */}
+        <Collapsible
+          open={backlogOpen}
+          onOpenChange={setBacklogOpen}
+          className="w-full"
+        >
+          <CollapsibleTrigger asChild>
+            <button
+              type="button"
+              className="flex w-full items-center justify-between px-[20px] py-[8px] bg-muted rounded-[22px] transition-colors hover:bg-muted/80"
+            >
+              <span className="font-medium text-[14px] text-foreground">
+                Backlog
+              </span>
+              <ChevronDown
+                className={cn(
+                  "h-[14px] w-[14px] text-muted-foreground transition-transform",
+                  backlogOpen ? "" : "-rotate-90",
+                )}
+              />
+            </button>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="w-full">
+            <div className="flex flex-col gap-[6px] items-start w-full pt-1">
+              {backlogTopics.length > 0 ? (
+                renderTopics(backlogTopics)
+              ) : (
+                <div className="w-full px-[14px] py-[24px] text-center text-sm text-muted-foreground">
+                  No topics in backlog
+                </div>
+              )}
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
+      </div>
+
+      {/* ── Scroll to top ────────────────────────────────────────────────── */}
+      <button
+        type="button"
+        aria-label="Scroll to top"
+        title="Scroll to top"
+        className="fixed bottom-6 right-6 flex items-center justify-center size-[24px] rounded-full bg-muted text-muted-foreground shadow-md hover:bg-accent hover:text-foreground transition-colors z-50"
+        onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+      >
+        <ChevronUp className="size-full" />
+      </button>
+    </div>
   );
 }
