@@ -87,20 +87,24 @@ export function QuickPracticePage() {
     return () => clearInterval(interval);
   }, [phase, timeLimitMinutes]);
 
-  // Auto-end when timer hits 0
+  // Clear saved state when transitioning to results
   useEffect(() => {
-    if (phase !== "active" || timeLimitMinutes <= 0 || timeRemaining > 0) return;
-    finishSession();
-  }, [timeRemaining]);
+    if (phase === "results") clearSaved();
+  }, [phase, clearSaved]);
 
   const finishSession = useCallback(async () => {
     const sid = sessionIdRef.current;
     if (!sid) return;
-    const totalTime = timeLimitMinutes > 0 ? timeLimitMinutes * 60 - timeRemaining : Math.round((Date.now() - Date.now()) / 1000);
     await completeSession.mutateAsync({ sessionId: sid, timeTakenSeconds: activeElapsed || undefined });
     setSessionId(sid);
     setPhase("results");
   }, [timeLimitMinutes, timeRemaining, activeElapsed, completeSession]);
+
+  // Auto-end when timer hits 0
+  useEffect(() => {
+    if (phase !== "active" || timeLimitMinutes <= 0 || timeRemaining > 0) return;
+    finishSession();
+  }, [timeRemaining, finishSession]);
 
   const handleStart = useCallback(async () => {
     const result = await startPractice.mutateAsync(questionCount);
@@ -160,7 +164,6 @@ export function QuickPracticePage() {
   }
 
   if (phase === "results") {
-    clearSaved();
     const answers = sessionDetail?.answers ?? [];
     const sess = sessionDetail?.session;
     const total = answers.length;

@@ -101,11 +101,10 @@ export function MockTestPage() {
     return () => clearInterval(interval);
   }, [phase]);
 
-  // Auto-end when timer hits 0
+  // Clear saved state when transitioning to results
   useEffect(() => {
-    if (phase !== "active" || timeLimitRef.current <= 0 || timeRemaining > 0) return;
-    finishSession();
-  }, [timeRemaining]);
+    if (phase === "results") clearSaved();
+  }, [phase, clearSaved]);
 
   const finishSession = useCallback(async () => {
     if (!sessionId) return;
@@ -113,6 +112,12 @@ export function MockTestPage() {
     await completeSession.mutateAsync({ sessionId, timeTakenSeconds: totalTime });
     setPhase("results");
   }, [sessionId, timeRemaining, completeSession]);
+
+  // Auto-end when timer hits 0
+  useEffect(() => {
+    if (phase !== "active" || timeLimitRef.current <= 0 || timeRemaining > 0) return;
+    finishSession();
+  }, [timeRemaining, finishSession]);
 
   const [startError, setStartError] = useState<string | null>(null);
 
@@ -166,7 +171,6 @@ export function MockTestPage() {
   // ─── Render ─────────────────────────────────────────────────────────
 
   if (phase === "results") {
-    clearSaved();
     const answers = sessionDetail?.answers ?? [];
     const total = answers.length;
     const correct = answers.filter((a) => a.isCorrect).length;

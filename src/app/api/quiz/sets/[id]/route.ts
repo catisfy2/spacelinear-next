@@ -16,8 +16,14 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
-  const body = await req.json();
-  const { title, topicId, materialId, accessToken } = body;
+
+  let body: Record<string, unknown>;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
+  const { title, topicId, materialId, accessToken } = body as { title?: string; topicId?: string; materialId?: string | null; accessToken: string };
 
   if (!accessToken) {
     return NextResponse.json({ error: "accessToken required" }, { status: 401 });
@@ -48,6 +54,10 @@ export async function PATCH(
 
   if (error) {
     return NextResponse.json({ error: "Failed to update question set" }, { status: 500 });
+  }
+
+  if (!data) {
+    return NextResponse.json({ error: "Question set not found" }, { status: 404 });
   }
 
   return NextResponse.json({ set: data });

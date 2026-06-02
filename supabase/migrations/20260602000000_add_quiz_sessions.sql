@@ -95,3 +95,39 @@ CREATE POLICY "Users can CRUD own mock_test_configs"
   ON public.mock_test_configs FOR ALL TO authenticated
   USING (auth.uid() = user_id)
   WITH CHECK (auth.uid() = user_id);
+
+-- ============================================================================
+-- Atomic score increment function
+-- ============================================================================
+CREATE OR REPLACE FUNCTION public.increment_session_score(session_uuid uuid)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  UPDATE public.quiz_sessions
+  SET score = COALESCE(score, 0) + 1
+  WHERE id = session_uuid;
+END;
+$$;
+
+-- ============================================================================
+-- CHECK constraints
+-- ============================================================================
+ALTER TABLE public.quiz_sessions DROP CONSTRAINT IF EXISTS chk_quiz_score_bounds;
+ALTER TABLE public.quiz_sessions ADD CONSTRAINT chk_quiz_score_bounds
+  CHECK (score >= 0 AND score <= total_questions);
+
+ALTER TABLE public.quiz_sessions DROP CONSTRAINT IF EXISTS chk_quiz_total_questions_positive;
+ALTER TABLE public.quiz_sessions ADD CONSTRAINT chk_quiz_total_questions_positive
+  CHECK (total_questions > 0);
+
+ALTER TABLE public.quiz_sessions DROP CONSTRAINT IF EXISTS chk_quiz_time_nonnegative;
+ALTER TABLE public.quiz_sessions ADD CONSTRAINT chk_quiz_time_nonnegative
+  CHECK (time_taken_seconds IS NULL OR time_taken_seconds >= 0);
+
+-- ============================================================================
+-- UNIQUE constraint on (session_id, question_id) to prevent duplicate answers
+-- ============================================================================
+CREATE UNIQUE INDEX IF NOT EXISTS idx_quiz_session_answers_unique
+  ON public.quiz_session_answers(session_id, question_id);

@@ -12,6 +12,7 @@ import type {
   SubmitAnswerResponse,
 } from "@/types/quiz";
 
+/** Map a raw DB row to a camelCase QuestionSet. */
 function mapQuestionSet(row: any): QuestionSet {
   return {
     id: row.id,
@@ -27,6 +28,7 @@ function mapQuestionSet(row: any): QuestionSet {
   };
 }
 
+/** Map a raw DB row to a camelCase Question. */
 function mapQuestion(row: any): Question {
   return {
     id: row.id,
@@ -41,6 +43,7 @@ function mapQuestion(row: any): Question {
   };
 }
 
+/** Map a raw DB row to a camelCase QuizSession. */
 function mapSession(row: any): QuizSession {
   return {
     id: row.id,
@@ -56,6 +59,7 @@ function mapSession(row: any): QuizSession {
   };
 }
 
+/** Map a raw DB row to a camelCase QuizSessionAnswer. */
 function mapAnswer(row: any): QuizSessionAnswer {
   return {
     id: row.id,
@@ -68,6 +72,7 @@ function mapAnswer(row: any): QuizSessionAnswer {
   };
 }
 
+/** Retrieve the current Supabase access token for the session. */
 async function getAccessToken(): Promise<string> {
   const { data } = await supabase.auth.getSession();
   return data.session?.access_token ?? "";
@@ -75,6 +80,7 @@ async function getAccessToken(): Promise<string> {
 
 // ─── Question Sets ──────────────────────────────────────────────────────
 
+/** Fetch all question sets for the current user (list-item shape). */
 export function useQuestionSets() {
   return useQuery({
     queryKey: ["question-sets"],
@@ -90,6 +96,7 @@ export function useQuestionSets() {
 
 // ─── All Questions ──────────────────────────────────────────────────────
 
+/** Fetch questions, optionally filtered by question set ID. */
 export function useQuestions(questionSetId?: string) {
   return useQuery({
     queryKey: ["questions", questionSetId],
@@ -108,6 +115,7 @@ export function useQuestions(questionSetId?: string) {
 
 // ─── Quick Practice ─────────────────────────────────────────────────────
 
+/** Start a quick-practice session with randomised questions. */
 export function useStartQuickPractice() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -139,6 +147,7 @@ export function useStartQuickPractice() {
 
 // ─── Topic Set ──────────────────────────────────────────────────────────
 
+/** Start a quiz session for a specific question set. */
 export function useStartTopicSet() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -172,6 +181,7 @@ export function useStartTopicSet() {
 
 // ─── Mock Test ──────────────────────────────────────────────────────────
 
+/** Start a mock-test session with configurable subject, topic, count, and difficulty. */
 export function useStartMockTest() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -211,6 +221,7 @@ export function useStartMockTest() {
 
 // ─── Submit Answer ──────────────────────────────────────────────────────
 
+/** Submit a single answer for the current session question. */
 export function useSubmitAnswer() {
   return useMutation({
     mutationFn: async (req: SubmitAnswerRequest & { timeTakenSeconds?: number }) => {
@@ -231,6 +242,7 @@ export function useSubmitAnswer() {
 
 // ─── Complete Session ───────────────────────────────────────────────────
 
+/** Complete (finalise) a quiz session, optionally recording total time. */
 export function useCompleteSession() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -263,6 +275,7 @@ export function useCompleteSession() {
 
 // ─── Sessions List ──────────────────────────────────────────────────────
 
+/** Fetch a paginated list of completed quiz sessions. */
 export function useSessions(page: number = 1, mode?: string) {
   return useQuery({
     queryKey: ["quiz-sessions", page, mode],
@@ -286,6 +299,7 @@ export function useSessions(page: number = 1, mode?: string) {
 
 // ─── Session Detail ─────────────────────────────────────────────────────
 
+/** Fetch a single session together with its answers and question details. */
 export function useSessionDetail(sessionId: string | null) {
   return useQuery({
     queryKey: ["quiz-session", sessionId],
@@ -309,6 +323,7 @@ export function useSessionDetail(sessionId: string | null) {
 
 // ─── Update Question Set ───────────────────────────────────────────────
 
+/** Update a question set's title, topic, and/or material link. */
 export function useUpdateQuestionSet() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -343,6 +358,7 @@ export function useUpdateQuestionSet() {
 
 // ─── Performance Data ───────────────────────────────────────────────────
 
+/** Fetch aggregated performance/analytics data for the current user. */
 export function usePerformanceData() {
   return useQuery({
     queryKey: ["quiz-performance"],

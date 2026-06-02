@@ -82,7 +82,7 @@ export function Sidebar() {
   ];
 
   const secondaryNavItems = [
-    { href: "/quiz/quick-practice", label: "Quiz", icon: HelpCircle },
+    { href: "/quiz", label: "Quiz", icon: HelpCircle },
     { href: "/materials", label: "Materials", icon: FileText },
     { href: "/notes", label: "Notes", icon: StickyNote },
   ];

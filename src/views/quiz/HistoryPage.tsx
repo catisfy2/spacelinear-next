@@ -21,15 +21,42 @@ export function HistoryPage() {
   const [view, setView] = useState<View>("list");
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
 
-  const { data, isLoading } = useSessions(page);
-  const { data: sessionDetail, isLoading: detailLoading } = useSessionDetail(selectedSessionId);
+  const { data, isLoading, isError, error } = useSessions(page);
+  const { data: sessionDetail, isLoading: detailLoading, isError: detailError } = useSessionDetail(selectedSessionId);
 
   const handleSelectSession = (id: string) => {
     setSelectedSessionId(id);
     setView("detail");
   };
 
-  if (view === "detail" && sessionDetail) {
+  if (view === "detail") {
+    if (detailLoading) {
+      return (
+        <PageShell maxWidth="narrow">
+          <div className="flex items-center justify-center py-16">
+            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+          </div>
+        </PageShell>
+      );
+    }
+    if (detailError || !sessionDetail) {
+      return (
+        <PageShell maxWidth="narrow">
+          <div className="py-8">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => { setView("list"); setSelectedSessionId(null); }}
+              className="mb-4"
+            >
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back to History
+            </Button>
+            <p className="text-sm text-red-500">Failed to load session details.</p>
+          </div>
+        </PageShell>
+      );
+    }
     const { session, answers } = sessionDetail;
     const pct = session.totalQuestions > 0
       ? Math.round((session.score / session.totalQuestions) * 100)
@@ -66,7 +93,7 @@ export function HistoryPage() {
                   <span className="text-muted-foreground">Started:</span>{" "}
                   {new Date(session.startedAt).toLocaleDateString()}
                 </div>
-                {session.timeTakenSeconds && (
+                {session.timeTakenSeconds != null && (
                   <div>
                     <span className="text-muted-foreground">Time:</span>{" "}
                     {formatTime(session.timeTakenSeconds)}
@@ -76,12 +103,7 @@ export function HistoryPage() {
             </CardContent>
           </Card>
 
-          {detailLoading ? (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 className="h-5 w-5 animate-spin text-primary" />
-            </div>
-          ) : (
-            <div className="space-y-3">
+          <div className="space-y-3">
               {answers.map((answer: any) => (
                 <Card key={answer.id} className="p-4">
                   <div className="flex items-start gap-3">
@@ -108,7 +130,6 @@ export function HistoryPage() {
                 </Card>
               ))}
             </div>
-          )}
         </div>
       </PageShell>
     );
@@ -122,6 +143,19 @@ export function HistoryPage() {
           <Skeleton className="h-12 w-full rounded-lg" />
           <Skeleton className="h-12 w-full rounded-lg" />
           <Skeleton className="h-12 w-full rounded-lg" />
+        </div>
+      </PageShell>
+    );
+  }
+
+  if (isError) {
+    return (
+      <PageShell>
+        <div className="py-8">
+          <h1 className="text-2xl font-semibold tracking-tight">Attempt History</h1>
+          <p className="mt-4 text-sm text-red-500">
+            {error instanceof Error ? error.message : "Failed to load history."}
+          </p>
         </div>
       </PageShell>
     );
@@ -184,7 +218,7 @@ export function HistoryPage() {
                       </span>
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
-                      {session.timeTakenSeconds ? formatTime(session.timeTakenSeconds) : "-"}
+                      {session.timeTakenSeconds != null ? formatTime(session.timeTakenSeconds) : "-"}
                     </TableCell>
                     <TableCell>
                       <Button variant="ghost" size="sm">View</Button>

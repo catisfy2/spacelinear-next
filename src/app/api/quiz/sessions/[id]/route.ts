@@ -40,16 +40,21 @@ export async function GET(
     return NextResponse.json({ error: "Session not found" }, { status: 404 });
   }
 
-  // Get answers with question details
+  if (!session.completed_at) {
+    return NextResponse.json({ error: "Session not completed" }, { status: 400 });
+  }
+
+  // Get answers with question details, ordered by submission time
   const { data: answers } = await authClient
     .from("quiz_session_answers")
     .select("*")
-    .eq("session_id", id);
+    .eq("session_id", id)
+    .order("created_at", { ascending: true });
 
-  // Get question details for each answer
+  // Get question details for each answer (review-safe columns only)
   const questionIds = (answers ?? []).map((a) => a.question_id);
   const { data: questions } = questionIds.length > 0
-    ? await authClient.from("questions").select("*").in("id", questionIds)
+    ? await authClient.from("questions").select("id, question, options, answer, explanation, difficulty, tags").in("id", questionIds)
     : { data: [] };
 
   const questionMap = new Map(

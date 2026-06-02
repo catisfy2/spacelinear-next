@@ -119,11 +119,10 @@ export function QuestionSetsPage() {
     return () => clearInterval(interval);
   }, [phase]);
 
-  // Auto-end when timer hits 0
+  // Clear saved state when transitioning to results
   useEffect(() => {
-    if (phase !== "active" || timeLimitMinutesRef.current <= 0 || timeRemaining > 0) return;
-    finishSession();
-  }, [timeRemaining]);
+    if (phase === "results") clearSaved();
+  }, [phase, clearSaved]);
 
   const finishSession = useCallback(async () => {
     if (!sessionId) return;
@@ -133,6 +132,12 @@ export function QuestionSetsPage() {
     });
     setPhase("results");
   }, [sessionId, timeRemaining, completeSession]);
+
+  // Auto-end when timer hits 0
+  useEffect(() => {
+    if (phase !== "active" || timeLimitMinutesRef.current <= 0 || timeRemaining > 0) return;
+    finishSession();
+  }, [timeRemaining, finishSession]);
 
   const handleStartSet = useCallback(async () => {
     if (!startingSetId) return;
@@ -235,7 +240,6 @@ export function QuestionSetsPage() {
   // ─── Results ────────────────────────────────────────────────────────
 
   if (phase === "results") {
-    clearSaved();
     const answers = sessionDetail?.answers ?? [];
     const total = answers.length;
     const correct = answers.filter((a) => a.isCorrect).length;
@@ -366,7 +370,7 @@ export function QuestionSetsPage() {
             </DialogHeader>
             <div className="space-y-4 py-2">
               <p className="text-sm text-muted-foreground">
-                {questions.length} questions
+                {sets?.find((s) => s.id === startingSetId)?.questionCount ?? 0} questions
               </p>
               <div className="space-y-2">
                 <Label htmlFor="qs-time">Time limit (minutes, 0 = no limit)</Label>

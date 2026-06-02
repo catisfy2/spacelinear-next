@@ -815,12 +815,11 @@ export const useStore = create<AppState>()((set, get) => ({
       materials: s.materials.map((m) => (m.id === id ? { ...m, name } : m)),
     }));
 
-    // Sync question set title if it was named after this material
-    if (oldName) {
-      const oldTitle = `Quiz: ${oldName}`;
-      const newTitle = `Quiz: ${name}`;
-      await (supabase as any).from("question_sets").update({ title: newTitle }).eq("title", oldTitle);
-    }
+    // Sync question set title if linked via material_id
+    await (supabase as any)
+      .from("question_sets")
+      .update({ title: `Quiz: ${name}` })
+      .eq("material_id", id);
   },
 
   deleteMaterial: async (id) => {

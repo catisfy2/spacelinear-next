@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useCallback } from "react";
 
+/** Shape of quiz state persisted to sessionStorage for reload recovery. */
 export interface PersistedQuizState {
   sessionId: string;
   currentIndex: number;
@@ -17,6 +18,18 @@ export interface PersistedQuizState {
   }>;
 }
 
+/**
+ * Persist quiz state to sessionStorage, restore it on page reload, and
+ * automatically dismiss the quiz on SPA navigation away.
+ *
+ * @param storageKey - Unique sessionStorage key for this quiz type.
+ * @param mode       - Logical mode identifier (e.g. "quick-practice").
+ * @param phase      - Current component phase ("active" = quiz in progress).
+ * @param sessionId  - Current quiz session ID.
+ * @param currentState - State snapshot to persist (null when not active).
+ * @param onSpaNavigate - Callback fired when SPA navigation is detected.
+ * @returns An object with loadSaved (to restore) and clearSaved (to clean up).
+ */
 export function useQuizPersistence(
   storageKey: string,
   mode: string,
@@ -66,19 +79,35 @@ export function useQuizPersistence(
     };
   }, [storageKey]);
 
+  /** Restore a previously persisted quiz state, or null if none/expired. */
   const loadSaved = useCallback((): PersistedQuizState | null => {
     const raw = sessionStorage.getItem(storageKey);
     if (!raw) return null;
     try {
       const data = JSON.parse(raw);
-      if (data.path === window.location.pathname && data.mode === mode) {
-        const { questions, currentIndex, answeredCount, timeLimitMinutes, timeRemaining, sessionId } = data;
-        return { questions, currentIndex, answeredCount, timeLimitMinutes, timeRemaining, sessionId };
+      if (
+        !data || typeof data !== "object" ||
+        data.path !== window.location.pathname ||
+        data.mode !== mode ||
+        !Array.isArray(data.questions) ||
+        !Number.isInteger(data.currentIndex) ||
+        !Number.isInteger(data.answeredCount) ||
+        !Number.isInteger(data.timeLimitMinutes) ||
+        !Number.isInteger(data.timeRemaining) ||
+        typeof data.sessionId !== "string"
+      ) {
+        sessionStorage.removeItem(storageKey);
+        return null;
       }
-    } catch {}
-    return null;
+      const { questions, currentIndex, answeredCount, timeLimitMinutes, timeRemaining, sessionId } = data;
+      return { questions, currentIndex, answeredCount, timeLimitMinutes, timeRemaining, sessionId };
+    } catch {
+      sessionStorage.removeItem(storageKey);
+      return null;
+    }
   }, [storageKey, mode]);
 
+  /** Remove the persisted quiz state from sessionStorage. */
   const clearSaved = useCallback(() => {
     sessionStorage.removeItem(storageKey);
     sessionStorage.removeItem(storageKey + "-reloading");

@@ -1,9 +1,12 @@
 // ─── Core Data Shapes ───────────────────────────────────────────────────
 
+/** Difficulty levels for quiz questions. */
 export type QuestionDifficulty = "easy" | "medium" | "hard";
 
+/** Supported quiz session modes. */
 export type QuizSessionMode = "quick_practice" | "mock_test" | "topic_set";
 
+/** A topic-scoped collection of questions generated from study material. */
 export interface QuestionSet {
   id: string;
   userId: string;
@@ -17,6 +20,7 @@ export interface QuestionSet {
   createdAt: string;
 }
 
+/** A single multiple-choice question within a question set. */
 export interface Question {
   id: string;
   questionSetId: string;
@@ -29,6 +33,7 @@ export interface Question {
   createdAt: string;
 }
 
+/** A single quiz attempt session. */
 export interface QuizSession {
   id: string;
   userId: string;
@@ -42,6 +47,7 @@ export interface QuizSession {
   completedAt: string | null;
 }
 
+/** A single answer recorded within a quiz session. */
 export interface QuizSessionAnswer {
   id: string;
   sessionId: string;
@@ -53,6 +59,7 @@ export interface QuizSessionAnswer {
   question?: Pick<Question, "question" | "answer" | "explanation"> | null;
 }
 
+/** Saved configuration for a mock test. */
 export interface MockTestConfig {
   id: string;
   userId: string;
@@ -66,14 +73,17 @@ export interface MockTestConfig {
 
 // ─── API Request / Response Types ───────────────────────────────────────
 
+/** Request body for starting a quick-practice session. */
 export interface StartQuickPracticeRequest {
   count?: number;
 }
 
+/** Request body for starting a topic-set session. */
 export interface StartTopicSetRequest {
   questionSetId: string;
 }
 
+/** Request body for starting a mock-test session. */
 export interface StartMockTestRequest {
   subjectId?: string;
   topicId?: string;
@@ -82,28 +92,33 @@ export interface StartMockTestRequest {
   difficulty: QuestionDifficulty | "mixed";
 }
 
+/** Request body for submitting a single answer. */
 export interface SubmitAnswerRequest {
   sessionId: string;
   questionId: string;
   answer: string;
 }
 
+/** A question set row enriched with topic/material names and attempt status. */
 export interface QuestionSetListItem extends QuestionSet {
   topicName: string | null;
   materialName: string | null;
   attempted: boolean;
 }
 
+/** Response returned after submitting an answer. */
 export interface SubmitAnswerResponse {
   isCorrect: boolean;
   answer: string;
   explanation: string | null;
 }
 
+/** Request body for completing (finalising) a session. */
 export interface CompleteSessionRequest {
   sessionId: string;
 }
 
+/** A session together with its full answer list. */
 export interface QuizSessionSummary {
   session: QuizSession;
   answers: QuizSessionAnswer[];
@@ -111,6 +126,7 @@ export interface QuizSessionSummary {
 
 // ─── Performance / Analytics Types ──────────────────────────────────────
 
+/** Aggregated performance data scoped to a single subject. */
 export interface SubjectPerformance {
   subjectId: string;
   subjectName: string;
@@ -119,6 +135,7 @@ export interface SubjectPerformance {
   accuracy: number;
 }
 
+/** Aggregated performance data scoped to a single topic. */
 export interface TopicPerformance {
   topicId: string;
   topicName: string;
@@ -128,6 +145,7 @@ export interface TopicPerformance {
   accuracy: number;
 }
 
+/** Accuracy broken down by difficulty level. */
 export interface DifficultyDistribution {
   difficulty: QuestionDifficulty;
   total: number;
@@ -135,12 +153,14 @@ export interface DifficultyDistribution {
   accuracy: number;
 }
 
+/** Accuracy snapshot for a single day. */
 export interface AccuracyOverTime {
   date: string;
   accuracy: number;
   totalQuestions: number;
 }
 
+/** A topic identified as a weak area based on accuracy. */
 export interface WeakTopic {
   topicId: string;
   topicName: string;
@@ -148,6 +168,7 @@ export interface WeakTopic {
   totalAttempts: number;
 }
 
+/** Top-level performance data object returned by the performance API. */
 export interface PerformanceData {
   overallAccuracy: number;
   totalSessions: number;
@@ -162,22 +183,26 @@ export interface PerformanceData {
 
 // ─── Helpers ────────────────────────────────────────────────────────────
 
+/** Calculate the percentage score rounded to the nearest integer. */
 export function calculateScore(correct: number, total: number): number {
   if (total === 0) return 0;
   return Math.round((correct / total) * 100);
 }
 
+/** Randomly pick `count` items from an array using Fisher–Yates shuffle. */
 export function pickQuestions<T>(questions: T[], count: number): T[] {
   const shuffled = [...questions].sort(() => Math.random() - 0.5);
   return shuffled.slice(0, Math.min(count, shuffled.length));
 }
 
+/** Format a duration in seconds to "m:ss" display format. */
 export function formatTime(seconds: number): string {
   const mins = Math.floor(seconds / 60);
   const secs = seconds % 60;
   return `${mins}:${secs.toString().padStart(2, "0")}`;
 }
 
+/** Return a human-readable label for an accuracy percentage. */
 export function getAccuracyLabel(accuracy: number): string {
   if (accuracy >= 90) return "Excellent";
   if (accuracy >= 75) return "Good";
@@ -185,6 +210,7 @@ export function getAccuracyLabel(accuracy: number): string {
   return "Needs Improvement";
 }
 
+/** Return a Tailwind text colour class for an accuracy percentage. */
 export function getAccuracyColor(accuracy: number): string {
   if (accuracy >= 90) return "text-emerald-500";
   if (accuracy >= 75) return "text-blue-500";

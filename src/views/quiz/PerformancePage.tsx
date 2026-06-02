@@ -5,7 +5,6 @@ import { PageShell } from "@/components/app/PageShell";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/app/EmptyState";
-import { Loader2 } from "lucide-react";
 import {
   BarChart,
   Bar,

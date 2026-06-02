@@ -14,15 +14,26 @@ function getAuthClient(accessToken: string) {
 export async function POST(req: NextRequest) {
   const {
     subjectId,
-    topicId,
-    count = 10,
-    timeLimitMinutes = 30,
+    topicId: rawTopicId,
+    count: rawCount,
+    timeLimitMinutes: rawTimeLimit,
     difficulty = "mixed",
     accessToken,
   } = await req.json();
 
   if (!accessToken) {
     return NextResponse.json({ error: "accessToken required" }, { status: 401 });
+  }
+
+  const count = rawCount !== undefined ? Number(rawCount) : 10;
+  const timeLimitMinutes = rawTimeLimit !== undefined ? Number(rawTimeLimit) : 30;
+  const topicId = rawTopicId !== undefined ? String(rawTopicId) : undefined;
+
+  if (!Number.isInteger(count) || count < 1) {
+    return NextResponse.json({ error: "count must be a positive integer" }, { status: 400 });
+  }
+  if (!Number.isInteger(timeLimitMinutes) || timeLimitMinutes < 1) {
+    return NextResponse.json({ error: "timeLimitMinutes must be a positive integer" }, { status: 400 });
   }
 
   const authClient = getAuthClient(accessToken);
@@ -37,7 +48,7 @@ export async function POST(req: NextRequest) {
     .select("id");
 
   if (topicId) {
-    // Find question sets for this topic, then questions in those sets
+    // Topic-level filter (most specific)
     const { data: sets } = await authClient
       .from("question_sets")
       .select("id")
@@ -45,9 +56,34 @@ export async function POST(req: NextRequest) {
       .eq("user_id", user.id);
 
     const setIds = (sets ?? []).map((s) => s.id);
-    if (setIds.length > 0) {
-      query = query.in("question_set_id", setIds);
+    if (setIds.length === 0) {
+      return NextResponse.json({ error: "No questions match the criteria" }, { status: 404 });
     }
+    query = query.in("question_set_id", setIds);
+  } else if (subjectId) {
+    // Subject-level filter: topics → question_sets → questions
+    const { data: subjectTopics } = await authClient
+      .from("topics")
+      .select("id")
+      .eq("subject_id", subjectId)
+      .eq("user_id", user.id);
+
+    const topicIds = (subjectTopics ?? []).map((t) => t.id);
+    if (topicIds.length === 0) {
+      return NextResponse.json({ error: "No questions match the criteria" }, { status: 404 });
+    }
+
+    const { data: sets } = await authClient
+      .from("question_sets")
+      .select("id")
+      .in("topic_id", topicIds)
+      .eq("user_id", user.id);
+
+    const setIds = (sets ?? []).map((s) => s.id);
+    if (setIds.length === 0) {
+      return NextResponse.json({ error: "No questions match the criteria" }, { status: 404 });
+    }
+    query = query.in("question_set_id", setIds);
   }
 
   if (difficulty !== "mixed") {

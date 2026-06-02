@@ -53,7 +53,7 @@ export default function RootLayout({
           })();`}
         </Script>
       </head>
-      <body suppressHydrationWarning>
+      <body>
         <Providers>{children}</Providers>
       </body>
     </html>

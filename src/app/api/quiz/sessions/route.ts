@@ -13,13 +13,16 @@ function getAuthClient(accessToken: string) {
 
 export async function GET(req: NextRequest) {
   const accessToken = req.nextUrl.searchParams.get("accessToken");
-  const page = parseInt(req.nextUrl.searchParams.get("page") ?? "1", 10);
-  const limit = parseInt(req.nextUrl.searchParams.get("limit") ?? "20", 10);
+  const rawPage = parseInt(req.nextUrl.searchParams.get("page") ?? "1", 10);
+  const rawLimit = parseInt(req.nextUrl.searchParams.get("limit") ?? "20", 10);
   const mode = req.nextUrl.searchParams.get("mode");
 
   if (!accessToken) {
     return NextResponse.json({ error: "accessToken required" }, { status: 401 });
   }
+
+  const page = Number.isInteger(rawPage) && rawPage >= 1 ? rawPage : 1;
+  const limit = Math.min(Number.isInteger(rawLimit) && rawLimit >= 1 ? rawLimit : 20, 100);
 
   const authClient = getAuthClient(accessToken);
   const { data: { user }, error: authError } = await authClient.auth.getUser();

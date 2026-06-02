@@ -12,10 +12,15 @@ function getAuthClient(accessToken: string) {
 }
 
 export async function POST(req: NextRequest) {
-  const { count = 10, accessToken } = await req.json();
+  const { count: rawCount, accessToken } = await req.json();
 
   if (!accessToken) {
     return NextResponse.json({ error: "accessToken required" }, { status: 401 });
+  }
+
+  const count = rawCount !== undefined ? Number(rawCount) : 10;
+  if (!Number.isInteger(count) || count < 1) {
+    return NextResponse.json({ error: "count must be a positive integer" }, { status: 400 });
   }
 
   const authClient = getAuthClient(accessToken);

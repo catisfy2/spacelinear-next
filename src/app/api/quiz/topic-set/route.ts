@@ -47,6 +47,10 @@ export async function POST(req: NextRequest) {
 
   const questionIds = (questions ?? []).map((q) => q.id);
 
+  if (questionIds.length === 0) {
+    return NextResponse.json({ error: "This question set has no questions" }, { status: 404 });
+  }
+
   // Create session
   const { data: session, error: sessionError } = await authClient
     .from("quiz_sessions")

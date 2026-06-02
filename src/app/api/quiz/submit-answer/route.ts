@@ -81,12 +81,18 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Failed to record answer" }, { status: 500 });
     }
 
-    // Increment score if correct
+    // Atomically increment score if correct
     if (isCorrect) {
-      await authClient
-        .from("quiz_sessions")
-        .update({ score: session.score + 1 })
-        .eq("id", sessionId);
+      const { error: incError } = await authClient.rpc("increment_session_score", {
+        session_uuid: sessionId,
+      });
+      if (incError) {
+        // Fallback: direct update (non-atomic but better than failing)
+        await authClient
+          .from("quiz_sessions")
+          .update({ score: (session.score ?? 0) + 1 })
+          .eq("id", sessionId);
+      }
     }
   }
 
