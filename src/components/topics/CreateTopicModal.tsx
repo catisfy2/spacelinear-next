@@ -232,30 +232,6 @@ export function CreateTopicModal({ onClose }: { onClose: () => void }) {
       // 4. Sync the store with the updated topic
       await useStore.getState().refreshTopicFromDb(topic.id);
 
-      // 5. Trigger AI generation
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      const accessToken = session?.access_token;
-
-      if (accessToken) {
-        const subjectName = finalSubjectId
-          ? (subjects.find((s) => s.id === finalSubjectId)?.name ?? null)
-          : subjectQuery.trim() || null;
-
-        fetch("/api/topics/generate", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            topicId: topic.id,
-            title: topic.title,
-            subjectName,
-            accessToken,
-          }),
-        });
-        useStore.getState().startPollingAiContent(topic.id);
-      }
-
       toast.success(
         willCreateSubject ? "Topic & subject created!" : "Topic created!",
       );

@@ -7,6 +7,16 @@ import { formatNextReview, DIFFICULTY_CONFIG } from "@/lib/constants";
 import type { Topic, Subject } from "@/lib/types";
 import { Checkbox } from "@/components/ui/checkbox";
 
+function formatSafeDate(
+  dateStr: string | null | undefined,
+  dateFormat: string,
+): string {
+  if (!dateStr) return "—";
+  const date = new Date(dateStr);
+  if (isNaN(date.getTime())) return "—";
+  return format(date, dateFormat);
+}
+
 const DIFFICULTY_BG_CLASS: Record<string, string> = {
   relearn: "bg-sl-relearn/10 text-sl-relearn",
   hard: "bg-sl-hard/10 text-sl-hard",
@@ -28,13 +38,23 @@ export function TopicRow({
   className?: string;
 }) {
   const router = useRouter();
-  const isDue = new Date(topic.nextReviewDate) <= new Date();
+  const isDue = (() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const d = new Date(topic.nextReviewDate);
+    d.setHours(0, 0, 0, 0);
+    return d < tomorrow;
+  })();
   const statusDisplay =
-    topic.state === "new" || topic.state === "backlog"
+    topic.state === "new"
       ? "New"
-      : isDue
-        ? "Due Now"
-        : formatNextReview(topic.nextReviewDate);
+      : topic.state === "backlog"
+        ? "Backlog"
+        : isDue
+          ? "Due now"
+          : formatNextReview(topic.nextReviewDate);
 
   return (
     <div
@@ -42,9 +62,7 @@ export function TopicRow({
       tabIndex={0}
       className={cn(
         "group flex w-full items-center justify-between px-[14px] py-[8px] transition-colors rounded-xl cursor-pointer",
-        selected
-          ? "bg-sl-surface-hover"
-          : "hover:bg-sl-surface-hover",
+        selected ? "bg-sl-surface-hover" : "hover:bg-sl-surface-hover",
         className,
       )}
       onClick={() => router.push(`/topics/${topic.id}`)}
@@ -57,7 +75,9 @@ export function TopicRow({
           checked={selected}
           className={cn(
             "size-[16px]",
-            selected ? "visible" : "invisible group-hover:visible",
+            selected
+              ? "opacity-100"
+              : "opacity-0 group-hover:opacity-100 focus-visible:opacity-100",
           )}
           onClick={(e) => e.stopPropagation()}
           onCheckedChange={() => onToggle?.(topic.id)}
@@ -79,7 +99,8 @@ export function TopicRow({
               DIFFICULTY_BG_CLASS[topic.currentDifficulty] ?? "",
             )}
           >
-            {DIFFICULTY_CONFIG[topic.currentDifficulty]?.label ?? topic.currentDifficulty}
+            {DIFFICULTY_CONFIG[topic.currentDifficulty]?.label ??
+              topic.currentDifficulty}
           </span>
         )}
         <span className="hidden group-hover:inline text-[12px] font-medium text-foreground whitespace-nowrap">
@@ -94,7 +115,7 @@ export function TopicRow({
           {statusDisplay}
         </span>
         <span className="flex items-center justify-center w-[68px] text-[12px] font-medium text-foreground whitespace-nowrap shrink-0">
-          {format(new Date(topic.nextReviewDate), "d MMM")}
+          {formatSafeDate(topic.nextReviewDate, "d MMM")}
         </span>
       </div>
     </div>

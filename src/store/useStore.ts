@@ -69,8 +69,6 @@ interface AppState {
     userId: string,
   ) => Promise<Resource>;
   deleteResource: (resourceId: string) => Promise<void>;
-  aiGenerationStatus: Record<string, "pending" | "done" | "failed">;
-  startPollingAiContent: (topicId: string) => void;
   refreshTopicFromDb: (topicId: string) => Promise<void>;
   scheduleTopicForToday: (topicId: string) => Promise<void>;
   moveToBacklog: (topicId: string) => Promise<void>;
@@ -502,52 +500,6 @@ export const useStore = create<AppState>()((set, get) => ({
     set((s) => ({ resources: s.resources.filter((r) => r.id !== resourceId) }));
   },
 
-  aiGenerationStatus: {} as Record<string, "pending" | "done" | "failed">,
-
-  startPollingAiContent: (topicId: string) => {
-    set((s) => ({
-      aiGenerationStatus: {
-        ...s.aiGenerationStatus,
-        [topicId]: "pending" as const,
-      },
-    }));
-    let attempts = 0;
-    const maxAttempts = 20;
-    const interval = setInterval(async () => {
-      attempts++;
-      const { data } = await supabase
-        .from("topics")
-        .select("description, tags")
-        .eq("id", topicId)
-        .single();
-      if (data?.description) {
-        clearInterval(interval);
-        const topic = get().topics.find((t) => t.id === topicId);
-        if (topic) {
-          set((s) => ({
-            topics: s.topics.map((t) =>
-              t.id === topicId
-                ? { ...t, description: data.description, tags: data.tags ?? [] }
-                : t,
-            ),
-            aiGenerationStatus: {
-              ...s.aiGenerationStatus,
-              [topicId]: "done" as const,
-            },
-          }));
-        }
-      } else if (attempts >= maxAttempts) {
-        clearInterval(interval);
-        set((s) => ({
-          aiGenerationStatus: {
-            ...s.aiGenerationStatus,
-            [topicId]: "failed" as const,
-          },
-        }));
-      }
-    }, 3000);
-  },
-
   refreshTopicFromDb: async (topicId: string) => {
     const { data } = await supabase
       .from("topics")
@@ -946,9 +898,7 @@ export const useStore = create<AppState>()((set, get) => ({
         totalAttempts: stats.total,
         correctCount: stats.correct,
         accuracy:
-          stats.total > 0
-            ? Math.round((stats.correct / stats.total) * 100)
-            : 0,
+          stats.total > 0 ? Math.round((stats.correct / stats.total) * 100) : 0,
       }))
       .sort((a, b) => a.accuracy - b.accuracy);
 

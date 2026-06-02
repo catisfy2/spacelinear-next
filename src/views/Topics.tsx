@@ -59,7 +59,13 @@ const DIFFICULTIES: Difficulty[] = ["relearn", "hard", "medium", "easy"];
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function isDueTopic(topic: Topic): boolean {
-  return new Date(topic.nextReviewDate) <= new Date();
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const d = new Date(topic.nextReviewDate);
+  d.setHours(0, 0, 0, 0);
+  return d < tomorrow;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -79,7 +85,9 @@ export function TopicsPage() {
   const [learningOpen, setLearningOpen] = useState(true);
   const [backlogOpen, setBacklogOpen] = useState(false);
 
-  const [selectedTopicIds, setSelectedTopicIds] = useState<Set<string>>(new Set());
+  const [selectedTopicIds, setSelectedTopicIds] = useState<Set<string>>(
+    new Set(),
+  );
 
   // ── Filtering & Sorting ───────────────────────────────────────────────────
 
@@ -89,11 +97,7 @@ export function TopicsPage() {
     if (chipFilter === "due") {
       result = result.filter(isDueTopic);
     } else if (chipFilter === "backlog") {
-      const cutoff = new Date();
-      cutoff.setDate(cutoff.getDate() + 30);
-      result = result.filter(
-        (t) => new Date(t.nextReviewDate) > cutoff,
-      );
+      result = result.filter((t) => t.state === "backlog" || t.state === "new");
     }
 
     if (selectedSubjectIds.size > 0) {
@@ -103,8 +107,7 @@ export function TopicsPage() {
     if (selectedDifficulties.size > 0) {
       result = result.filter(
         (t) =>
-          t.currentDifficulty &&
-          selectedDifficulties.has(t.currentDifficulty),
+          t.currentDifficulty && selectedDifficulties.has(t.currentDifficulty),
       );
     }
 
@@ -122,8 +125,7 @@ export function TopicsPage() {
           );
         case "created":
           return (
-            new Date(b.createdAt).getTime() -
-            new Date(a.createdAt).getTime()
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
           );
         case "alpha":
           return a.title.localeCompare(b.title);
@@ -373,7 +375,11 @@ export function TopicsPage() {
                   ? "text-primary"
                   : "text-muted-foreground hover:text-foreground",
               )}
-              title={activeFilterCount > 0 ? `${activeFilterCount} filter${activeFilterCount > 1 ? "s" : ""} active` : "No active filters"}
+              title={
+                activeFilterCount > 0
+                  ? `${activeFilterCount} filter${activeFilterCount > 1 ? "s" : ""} active`
+                  : "No active filters"
+              }
             >
               <ListFilter className="size-full" />
               {activeFilterCount > 0 && (
@@ -458,6 +464,8 @@ export function TopicsPage() {
       {/* ── Scroll to top ────────────────────────────────────────────────── */}
       <button
         type="button"
+        aria-label="Scroll to top"
+        title="Scroll to top"
         className="fixed bottom-6 right-6 flex items-center justify-center size-[24px] rounded-full bg-muted text-muted-foreground shadow-md hover:bg-accent hover:text-foreground transition-colors z-50"
         onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
       >
