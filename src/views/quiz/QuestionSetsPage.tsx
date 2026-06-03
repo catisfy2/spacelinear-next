@@ -71,6 +71,7 @@ export function QuestionSetsPage() {
   // Timer
   const [timeRemaining, setTimeRemaining] = useState(0);
   const timeLimitMinutesRef = useRef(0);
+  const isCompletingRef = useRef(false);
 
   // Results
   const { data: sessionDetail } = useSessionDetail(phase === "results" ? sessionId : null);
@@ -125,12 +126,17 @@ export function QuestionSetsPage() {
   }, [phase, clearSaved]);
 
   const finishSession = useCallback(async () => {
-    if (!sessionId) return;
-    await completeSession.mutateAsync({
-      sessionId,
-      timeTakenSeconds: timeLimitMinutesRef.current > 0 ? timeLimitMinutesRef.current * 60 - timeRemaining : undefined,
-    });
-    setPhase("results");
+    if (!sessionId || isCompletingRef.current) return;
+    isCompletingRef.current = true;
+    try {
+      await completeSession.mutateAsync({
+        sessionId,
+        timeTakenSeconds: timeLimitMinutesRef.current > 0 ? timeLimitMinutesRef.current * 60 - timeRemaining : undefined,
+      });
+      setPhase("results");
+    } finally {
+      isCompletingRef.current = false;
+    }
   }, [sessionId, timeRemaining, completeSession]);
 
   // Auto-end when timer hits 0
@@ -193,7 +199,7 @@ export function QuestionSetsPage() {
     if (editTarget) {
       setEditTitle(editTarget.title);
       setEditTopicId(editTarget.topicId);
-      setEditMaterialId(editTarget.materialId ?? "");
+      setEditMaterialId(editTarget.materialId ?? "none");
     }
   }, [editTarget]);
 

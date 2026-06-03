@@ -191,8 +191,13 @@ export function calculateScore(correct: number, total: number): number {
 
 /** Randomly pick `count` items from an array using Fisher–Yates shuffle. */
 export function pickQuestions<T>(questions: T[], count: number): T[] {
-  const shuffled = [...questions].sort(() => Math.random() - 0.5);
-  return shuffled.slice(0, Math.min(count, shuffled.length));
+  const clippedCount = Math.max(0, Math.min(count, questions.length));
+  const shuffled = [...questions];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled.slice(0, clippedCount);
 }
 
 /** Format a duration in seconds to "m:ss" display format. */

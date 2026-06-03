@@ -212,8 +212,7 @@ export async function GET(req: NextRequest) {
   const activeDays = [...new Set(enriched.map((e) => e.sessionStartedAt.slice(0, 10)))].sort();
   let streakDays = 0;
   if (activeDays.length > 0) {
-    const today = new Date().toISOString().slice(0, 10);
-    let checkDate = today;
+    let checkDate = activeDays[activeDays.length - 1];
     for (let i = activeDays.length - 1; i >= 0; i--) {
       if (activeDays[i] === checkDate) {
         streakDays++;

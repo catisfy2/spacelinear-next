@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
   const { sessionId, questionId, answer, timeTakenSeconds, accessToken } =
     await req.json();
 
-  if (!sessionId || !questionId || !answer || !accessToken) {
+  if (!sessionId || !questionId || answer == null || !accessToken) {
     return NextResponse.json(
       { error: "sessionId, questionId, answer, and accessToken required" },
       { status: 400 },
@@ -87,7 +87,7 @@ export async function POST(req: NextRequest) {
         session_uuid: sessionId,
       });
       if (incError) {
-        // Fallback: direct update (non-atomic but better than failing)
+        console.error("increment_session_score RPC failed:", incError);
         await authClient
           .from("quiz_sessions")
           .update({ score: (session.score ?? 0) + 1 })

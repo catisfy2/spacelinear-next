@@ -107,20 +107,22 @@ AS $$
 BEGIN
   UPDATE public.quiz_sessions
   SET score = COALESCE(score, 0) + 1
-  WHERE id = session_uuid;
+  WHERE id = session_uuid AND user_id = auth.uid();
 END;
 $$;
+
+REVOKE EXECUTE ON FUNCTION public.increment_session_score FROM PUBLIC;
 
 -- ============================================================================
 -- CHECK constraints
 -- ============================================================================
 ALTER TABLE public.quiz_sessions DROP CONSTRAINT IF EXISTS chk_quiz_score_bounds;
 ALTER TABLE public.quiz_sessions ADD CONSTRAINT chk_quiz_score_bounds
-  CHECK (score >= 0 AND score <= total_questions);
+  CHECK (completed_at IS NULL OR (score >= 0 AND score <= total_questions));
 
 ALTER TABLE public.quiz_sessions DROP CONSTRAINT IF EXISTS chk_quiz_total_questions_positive;
 ALTER TABLE public.quiz_sessions ADD CONSTRAINT chk_quiz_total_questions_positive
-  CHECK (total_questions > 0);
+  CHECK (completed_at IS NULL OR total_questions > 0);
 
 ALTER TABLE public.quiz_sessions DROP CONSTRAINT IF EXISTS chk_quiz_time_nonnegative;
 ALTER TABLE public.quiz_sessions ADD CONSTRAINT chk_quiz_time_nonnegative

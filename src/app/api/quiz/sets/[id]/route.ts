@@ -50,7 +50,7 @@ export async function PATCH(
     .eq("id", id)
     .eq("user_id", user.id)
     .select()
-    .single();
+    .maybeSingle();
 
   if (error) {
     return NextResponse.json({ error: "Failed to update question set" }, { status: 500 });

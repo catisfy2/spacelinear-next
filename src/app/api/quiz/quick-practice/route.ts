@@ -38,8 +38,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "No questions available" }, { status: 404 });
   }
 
-  // Shuffle and pick
-  const shuffled = questions.sort(() => Math.random() - 0.5);
+  // Fisher-Yates shuffle and pick
+  const shuffled = [...questions];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
   const picked = shuffled.slice(0, Math.min(count, shuffled.length));
   const questionIds = picked.map((q) => q.id);
 
@@ -59,19 +63,23 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Failed to create session" }, { status: 500 });
   }
 
-  // Fetch full question data
+  // Fetch full question data preserving questionIds order
   const { data: fullQuestions } = await authClient
     .from("questions")
     .select("*")
     .in("id", questionIds);
 
-  const sanitized = (fullQuestions ?? []).map((q) => ({
-    id: q.id,
-    question: q.question,
-    options: q.options,
-    difficulty: q.difficulty,
-    tags: q.tags,
-  }));
+  const questionMap = new Map((fullQuestions ?? []).map((q) => [q.id, q]));
+  const sanitized = questionIds
+    .map((id) => questionMap.get(id))
+    .filter(Boolean)
+    .map((q) => ({
+      id: q.id,
+      question: q.question,
+      options: q.options,
+      difficulty: q.difficulty,
+      tags: q.tags,
+    }));
 
   return NextResponse.json({ session, questions: sanitized });
 }

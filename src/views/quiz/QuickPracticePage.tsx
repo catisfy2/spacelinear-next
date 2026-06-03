@@ -38,6 +38,7 @@ export function QuickPracticePage() {
   // Timer
   const [timeRemaining, setTimeRemaining] = useState(0);
   const sessionIdRef = useRef<string | null>(null);
+  const isCompletingRef = useRef(false);
 
   // Results
   const { data: sessionDetail } = useSessionDetail(phase === "results" ? sessionId : null);
@@ -94,10 +95,15 @@ export function QuickPracticePage() {
 
   const finishSession = useCallback(async () => {
     const sid = sessionIdRef.current;
-    if (!sid) return;
-    await completeSession.mutateAsync({ sessionId: sid, timeTakenSeconds: activeElapsed || undefined });
-    setSessionId(sid);
-    setPhase("results");
+    if (!sid || isCompletingRef.current) return;
+    isCompletingRef.current = true;
+    try {
+      await completeSession.mutateAsync({ sessionId: sid, timeTakenSeconds: activeElapsed || undefined });
+      setSessionId(sid);
+      setPhase("results");
+    } finally {
+      isCompletingRef.current = false;
+    }
   }, [timeLimitMinutes, timeRemaining, activeElapsed, completeSession]);
 
   // Auto-end when timer hits 0
@@ -106,17 +112,24 @@ export function QuickPracticePage() {
     finishSession();
   }, [timeRemaining, finishSession]);
 
+  const [startError, setStartError] = useState<string | null>(null);
+
   const handleStart = useCallback(async () => {
-    const result = await startPractice.mutateAsync(questionCount);
-    sessionIdRef.current = result.session.id;
-    setSessionId(result.session.id);
-    setQuestions(result.questions);
-    setCurrentIndex(0);
-    setAnsweredCount(0);
-    setSelectedAnswer(null);
-    setPhase("active");
-    if (timeLimitMinutes > 0) {
-      setTimeRemaining(timeLimitMinutes * 60);
+    setStartError(null);
+    try {
+      const result = await startPractice.mutateAsync(questionCount);
+      sessionIdRef.current = result.session.id;
+      setSessionId(result.session.id);
+      setQuestions(result.questions);
+      setCurrentIndex(0);
+      setAnsweredCount(0);
+      setSelectedAnswer(null);
+      setPhase("active");
+      if (timeLimitMinutes > 0) {
+        setTimeRemaining(timeLimitMinutes * 60);
+      }
+    } catch (err: any) {
+      setStartError(err.message ?? "Failed to start practice session.");
     }
   }, [startPractice, questionCount, timeLimitMinutes]);
 
@@ -256,8 +269,15 @@ export function QuickPracticePage() {
                 onChange={(e) => setTimeLimitMinutes(Number(e.target.value) || 0)}
               />
             </div>
-            <Button onClick={handleStart} size="lg" className="mt-4">
-              <BrainCircuit className="mr-2 h-4 w-4" />
+            {startError && (
+              <p className="text-sm text-red-500">{startError}</p>
+            )}
+            <Button onClick={handleStart} size="lg" className="mt-4" disabled={startPractice.isPending}>
+              {startPractice.isPending ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <BrainCircuit className="mr-2 h-4 w-4" />
+              )}
               Start Practice
             </Button>
           </div>

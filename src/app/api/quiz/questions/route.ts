@@ -31,14 +31,14 @@ export async function GET(req: NextRequest) {
     .select("*");
 
   if (questionSetId) {
-    query = query.eq("question_set_id", questionSetId);
+    query = query.eq("question_set_id", questionSetId).order("order", { ascending: true });
   }
 
   if (difficulty) {
     query = query.eq("difficulty", difficulty);
   }
 
-  const { data: questions, error } = await query.order("created_at", { ascending: false });
+  const { data: questions, error } = await query;
 
   if (error) {
     return NextResponse.json({ error: "Failed to fetch questions" }, { status: 500 });

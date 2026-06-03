@@ -49,6 +49,7 @@ export function MockTestPage() {
   // Timer
   const [timeRemaining, setTimeRemaining] = useState(0);
   const timeLimitRef = useRef(0);
+  const isCompletingRef = useRef(false);
 
   // Results
   const { data: sessionDetail } = useSessionDetail(phase === "results" ? sessionId : null);
@@ -107,10 +108,15 @@ export function MockTestPage() {
   }, [phase, clearSaved]);
 
   const finishSession = useCallback(async () => {
-    if (!sessionId) return;
-    const totalTime = timeLimitRef.current > 0 ? timeLimitRef.current * 60 - timeRemaining : undefined;
-    await completeSession.mutateAsync({ sessionId, timeTakenSeconds: totalTime });
-    setPhase("results");
+    if (!sessionId || isCompletingRef.current) return;
+    isCompletingRef.current = true;
+    try {
+      const totalTime = timeLimitRef.current > 0 ? timeLimitRef.current * 60 - timeRemaining : undefined;
+      await completeSession.mutateAsync({ sessionId, timeTakenSeconds: totalTime });
+      setPhase("results");
+    } finally {
+      isCompletingRef.current = false;
+    }
   }, [sessionId, timeRemaining, completeSession]);
 
   // Auto-end when timer hits 0
@@ -243,7 +249,7 @@ export function MockTestPage() {
           <Card className="mt-6 p-6 space-y-6">
             <div className="space-y-2">
               <Label>Subject</Label>
-              <Select value={selectedSubject} onValueChange={setSelectedSubject}>
+              <Select value={selectedSubject} onValueChange={(val) => { setSelectedSubject(val); setSelectedTopic("all"); }}>
                 <SelectTrigger>
                   <SelectValue placeholder="All subjects" />
                 </SelectTrigger>

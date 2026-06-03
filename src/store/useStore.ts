@@ -808,18 +808,21 @@ export const useStore = create<AppState>()((set, get) => ({
 
   renameMaterial: async (id, name) => {
     const oldMaterial = get().materials.find((m) => m.id === id);
-    const oldName = oldMaterial?.name;
 
-    await supabase.from("materials").update({ name }).eq("id", id);
+    const { error: matError } = await supabase.from("materials").update({ name }).eq("id", id);
+    if (matError) throw matError;
     set((s) => ({
       materials: s.materials.map((m) => (m.id === id ? { ...m, name } : m)),
     }));
 
     // Sync question set title if linked via material_id
-    await (supabase as any)
+    const { error: setError } = await (supabase as any)
       .from("question_sets")
       .update({ title: `Quiz: ${name}` })
       .eq("material_id", id);
+    if (setError) {
+      console.error("Failed to update question set title:", setError);
+    }
   },
 
   deleteMaterial: async (id) => {

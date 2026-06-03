@@ -75,7 +75,8 @@ function mapAnswer(row: any): QuizSessionAnswer {
 /** Retrieve the current Supabase access token for the session. */
 async function getAccessToken(): Promise<string> {
   const { data } = await supabase.auth.getSession();
-  return data.session?.access_token ?? "";
+  if (!data.session) throw new Error("No active session");
+  return data.session.access_token;
 }
 
 // ─── Question Sets ──────────────────────────────────────────────────────

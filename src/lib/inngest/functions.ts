@@ -355,6 +355,7 @@ Return ONLY valid JSON, no other text.`,
           title: setTitle,
           question_count: quizzes.length,
           difficulty: 'mixed',
+          material_id: materialId,
         })
         .select('id')
         .single();

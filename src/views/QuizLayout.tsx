@@ -25,6 +25,7 @@ export function QuizLayout({ children }: { children: React.ReactNode }) {
               <Link
                 key={tab.href}
                 href={tab.href}
+                aria-current={isActive ? "page" : undefined}
                 className={cn(
                   "relative px-4 py-3 text-sm font-medium transition-colors",
                   isActive

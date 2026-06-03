@@ -72,7 +72,8 @@ export async function POST(req: NextRequest) {
   const { data: fullQuestions } = await authClient
     .from("questions")
     .select("*")
-    .eq("question_set_id", questionSetId);
+    .eq("question_set_id", questionSetId)
+    .order("created_at", { ascending: true });
 
   const sanitized = (fullQuestions ?? []).map((q) => ({
     id: q.id,

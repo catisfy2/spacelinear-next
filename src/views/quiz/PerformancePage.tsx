@@ -37,7 +37,20 @@ export function PerformancePage() {
     );
   }
 
-  if (error || !perf) {
+  if (error) {
+    return (
+      <PageShell>
+        <div className="py-8">
+          <h1 className="text-2xl font-semibold tracking-tight">Performance Analysis</h1>
+          <p className="mt-4 text-sm text-red-500">
+            {error instanceof Error ? error.message : "Failed to load performance data."}
+          </p>
+        </div>
+      </PageShell>
+    );
+  }
+
+  if (!perf) {
     return (
       <PageShell>
         <EmptyState

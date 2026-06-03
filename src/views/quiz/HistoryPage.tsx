@@ -242,6 +242,7 @@ export function HistoryPage() {
                 size="sm"
                 disabled={page <= 1}
                 onClick={() => setPage((p) => p - 1)}
+                aria-label="Previous page"
               >
                 <ChevronLeft className="h-4 w-4" />
               </Button>
@@ -250,6 +251,7 @@ export function HistoryPage() {
                 size="sm"
                 disabled={page >= pagination.totalPages}
                 onClick={() => setPage((p) => p + 1)}
+                aria-label="Next page"
               >
                 <ChevronRight className="h-4 w-4" />
               </Button>
