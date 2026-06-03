@@ -192,14 +192,19 @@ export function TopicsPage() {
   );
 
   const renderTopics = (topicList: Topic[]) =>
-    topicList.map((topic) => (
-      <TopicRow
+    topicList.map((topic, i) => (
+      <div
         key={topic.id}
-        topic={topic}
-        subject={subjectMap.get(topic.subjectId)}
-        selected={selectedTopicIds.has(topic.id)}
-        onToggle={toggleTopicSelection}
-      />
+        className="animate-slide-up"
+        style={{ animationDelay: `${i * 0.025}s`, animationFillMode: 'backwards' }}
+      >
+        <TopicRow
+          topic={topic}
+          subject={subjectMap.get(topic.subjectId)}
+          selected={selectedTopicIds.has(topic.id)}
+          onToggle={toggleTopicSelection}
+        />
+      </div>
     ));
 
   // ── Empty state ───────────────────────────────────────────────────────────

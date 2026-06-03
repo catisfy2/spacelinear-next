@@ -180,13 +180,18 @@ export function NotesPage() {
       {/* Grid */}
       {displayedNotes.length > 0 && (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {displayedNotes.map((note) => (
-            <NoteCard
+          {displayedNotes.map((note, i) => (
+            <div
               key={note.id}
-              note={note}
-              onStar={handleStar}
-              onDelete={handleDelete}
-            />
+              className="animate-slide-up"
+              style={{ animationDelay: `${i * 0.04}s`, animationFillMode: 'backwards' }}
+            >
+              <NoteCard
+                note={note}
+                onStar={handleStar}
+                onDelete={handleDelete}
+              />
+            </div>
           ))}
         </div>
       )}

@@ -1,3 +1,5 @@
+"use client";
+
 import { cn } from '@/lib/utils';
 
 const maxWidthClass = {
@@ -22,7 +24,7 @@ export function PageShell({
   return (
     <div
       className={cn(
-        'mx-auto w-full min-h-0',
+        'mx-auto w-full min-h-0 animate-slide-up',
         maxWidthClass[maxWidth],
         padded && 'px-6 py-8',
         className,

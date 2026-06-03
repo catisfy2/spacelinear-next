@@ -127,19 +127,25 @@ export function Sidebar() {
           <SidebarGroup>
             <SidebarGroupContent>
               <SidebarMenu>
-                {primaryNavItems.map((item) => (
-                  <SidebarMenuItem key={item.href}>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={isActive(item.href, item.exact)}
-                      tooltip={item.label}
-                    >
-                      <Link href={item.href}>
-                        <item.icon />
-                        <span>{item.label}</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
+                {primaryNavItems.map((item, i) => (
+                  <div
+                    key={item.href}
+                    className="animate-slide-up"
+                    style={{ animationDelay: `${0.1 + i * 0.04}s`, animationFillMode: 'backwards' }}
+                  >
+                    <SidebarMenuItem>
+                      <SidebarMenuButton
+                        asChild
+                        isActive={isActive(item.href, item.exact)}
+                        tooltip={item.label}
+                      >
+                        <Link href={item.href}>
+                          <item.icon />
+                          <span>{item.label}</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  </div>
                 ))}
               </SidebarMenu>
             </SidebarGroupContent>
@@ -156,19 +162,25 @@ export function Sidebar() {
                     (pathname?.startsWith("/chat/") ?? false)
                   }
                 />
-                {secondaryNavItems.map((item) => (
-                  <SidebarMenuItem key={item.href}>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={isActive(item.href)}
-                      tooltip={item.label}
-                    >
-                      <Link href={item.href}>
-                        <item.icon />
-                        <span>{item.label}</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
+                {secondaryNavItems.map((item, i) => (
+                  <div
+                    key={item.href}
+                    className="animate-slide-up"
+                    style={{ animationDelay: `${0.25 + i * 0.04}s`, animationFillMode: 'backwards' }}
+                  >
+                    <SidebarMenuItem>
+                      <SidebarMenuButton
+                        asChild
+                        isActive={isActive(item.href)}
+                        tooltip={item.label}
+                      >
+                        <Link href={item.href}>
+                          <item.icon />
+                          <span>{item.label}</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  </div>
                 ))}
               </SidebarMenu>
             </SidebarGroupContent>

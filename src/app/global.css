@@ -10,7 +10,6 @@
     .light {
         --background: 47.9999 33.4124% 97.0613%;
         --foreground: 48.0004 19.5733% 20.0067%;
-        /* Slightly elevated vs background for clearer surfaces */
         --card: 48 35% 99%;
         --card-foreground: 59.9977 2.5881% 7.6423%;
         --popover: 300 50% 100%;
@@ -52,15 +51,15 @@
         --font-mono:
             "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Monaco,
             Consolas, Liberation Mono, Courier New, monospace;
-        --shadow-2xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
+        --shadow-2xs: 0 1px 2px 0px hsl(0 0% 0% / 0.04);
         --shadow-xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
-        --shadow-sm: 0px 1px 1.5px 0px hsla(0, 0%, 0%, 0.56);
-        --shadow: 0px 1px 3px 0px hsla(0, 0%, 0%, 0.56);
-        --shadow-md: 0px 1px 4.5px 0px hsla(0, 0%, 0%, 0.56);
-        --shadow-lg: 0px 1px 7.5px 0px hsla(0, 0%, 0%, 0.56);
+        --shadow-sm: 0 1px 4px 0px hsl(0 0% 0% / 0.06);
+        --shadow-md: 0 4px 12px -2px hsl(0 0% 0% / 0.08);
+        --shadow-lg: 0 8px 24px -4px hsl(0 0% 0% / 0.10);
         --shadow-xl:
-            0 1px 3px 0px hsl(0 0% 0% / 0.1), 0 8px 10px -1px hsl(0 0% 0% / 0.1);
-        --shadow-2xl: 0 1px 3px 0px hsl(0 0% 0% / 0.25);
+            0 1px 3px 0px hsl(0 0% 0% / 0.06), 0 12px 32px -8px hsl(0 0% 0% / 0.12);
+        --shadow-2xl: 0 24px 48px -12px hsl(0 0% 0% / 0.15);
+        --shadow-glow: 0 0 20px hsl(22.2046 56.4292% 55.877% / 0.15);
         --tracking-normal: 0em;
         --spacing: 0.25rem;
         --shadow-color: oklch(0 0 0);
@@ -113,15 +112,15 @@
         --sidebar-accent-foreground: 240 4.8% 95.9%;
         --sidebar-border: 240 3.7% 15.9%;
         --sidebar-ring: 217.2 91.2% 59.8%;
-        --shadow-2xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
-        --shadow-xs: 0 1px 3px 0px hsl(0 0% 0% / 0.05);
-        --shadow-sm: 0px 1px 1.5px 0px hsla(0, 0%, 0%, 0.56);
-        --shadow: 0px 1px 3px 0px hsla(0, 0%, 0%, 0.56);
-        --shadow-md: 0px 1px 4.5px 0px hsla(0, 0%, 0%, 0.56);
-        --shadow-lg: 0px 1px 7.5px 0px hsla(0, 0%, 0%, 0.56);
+        --shadow-2xs: 0 1px 2px 0px hsl(0 0% 0% / 0.3);
+        --shadow-xs: 0 1px 3px 0px hsl(0 0% 0% / 0.35);
+        --shadow-sm: 0 1px 4px 0px hsl(0 0% 0% / 0.4);
+        --shadow-md: 0 4px 12px -2px hsl(0 0% 0% / 0.5);
+        --shadow-lg: 0 8px 24px -4px hsl(0 0% 0% / 0.6);
         --shadow-xl:
-            0 1px 3px 0px hsl(0 0% 0% / 0.1), 0 8px 10px -1px hsl(0 0% 0% / 0.1);
-        --shadow-2xl: 0 1px 3px 0px hsl(0 0% 0% / 0.25);
+            0 1px 3px 0px hsl(0 0% 0% / 0.3), 0 12px 32px -8px hsl(0 0% 0% / 0.6);
+        --shadow-2xl: 0 24px 48px -12px hsl(0 0% 0% / 0.7);
+        --shadow-glow: 0 0 20px hsl(14.7691 63.0842% 59.6063% / 0.12);
         --radius: 0.75rem;
 
         --sl-relearn: 0 72% 51%;

@@ -296,17 +296,22 @@ export function TodayPage() {
           <TodayDropZone>
             {hasDue ? (
               <ul className="mt-3">
-                {dueTopics.map((topic) => {
+                {dueTopics.map((topic, i) => {
                   const sub = subjects.find((s) => s.id === topic.subjectId);
                   const isReviewed = reviewedIds.has(topic.id);
                   return (
-                    <TodayTopicItem
+                    <li
                       key={topic.id}
-                      topic={topic}
-                      subject={sub}
-                      isReviewed={isReviewed}
-                      onReview={openDialog}
-                    />
+                      className="animate-slide-up"
+                      style={{ animationDelay: `${i * 0.04}s`, animationFillMode: 'backwards' }}
+                    >
+                      <TodayTopicItem
+                        topic={topic}
+                        subject={sub}
+                        isReviewed={isReviewed}
+                        onReview={openDialog}
+                      />
+                    </li>
                   );
                 })}
               </ul>
