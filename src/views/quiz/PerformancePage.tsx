@@ -37,7 +37,7 @@ export function PerformancePage() {
     );
   }
 
-  if (error) {
+  if (error && !perf) {
     return (
       <PageShell>
         <div className="py-8">

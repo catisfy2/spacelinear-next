@@ -815,11 +815,16 @@ export const useStore = create<AppState>()((set, get) => ({
       materials: s.materials.map((m) => (m.id === id ? { ...m, name } : m)),
     }));
 
-    // Sync question set title if linked via material_id
-    const { error: setError } = await (supabase as any)
+    // Sync question set title if linked via material_id and still using the old default title
+    const oldTitle = oldMaterial?.name ? `Quiz: ${oldMaterial.name}` : null;
+    let query = (supabase as any)
       .from("question_sets")
       .update({ title: `Quiz: ${name}` })
       .eq("material_id", id);
+    if (oldTitle) {
+      query = query.eq("title", oldTitle);
+    }
+    const { error: setError } = await query;
     if (setError) {
       console.error("Failed to update question set title:", setError);
     }
