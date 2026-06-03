@@ -2,7 +2,12 @@ import type { Config } from "tailwindcss";
 
 export default {
   darkMode: ["class"],
-  content: ["./pages/**/*.{ts,tsx}", "./components/**/*.{ts,tsx}", "./app/**/*.{ts,tsx}", "./src/**/*.{ts,tsx}"],
+  content: [
+    "./pages/**/*.{ts,tsx}",
+    "./components/**/*.{ts,tsx}",
+    "./app/**/*.{ts,tsx}",
+    "./src/**/*.{ts,tsx}",
+  ],
   prefix: "",
   theme: {
   	container: {
@@ -89,13 +94,15 @@ export default {
   				border: 'hsl(var(--sidebar-border))',
   				ring: 'hsl(var(--sidebar-ring))'
   			},
-  			sl: {
-  				relearn: 'hsl(var(--sl-relearn))',
-  				hard: 'hsl(var(--sl-hard))',
-  				medium: 'hsl(var(--sl-medium))',
-  				easy: 'hsl(var(--sl-easy))',
-  				new: 'hsl(var(--sl-new))'
-  			}
+			sl: {
+				relearn: 'hsl(var(--sl-relearn))',
+				hard: 'hsl(var(--sl-hard))',
+				medium: 'hsl(var(--sl-medium))',
+				easy: 'hsl(var(--sl-easy))',
+				new: 'hsl(var(--sl-new))',
+				'surface-hover': 'hsl(var(--sl-surface-hover))',
+				'surface-active': 'hsl(var(--sl-surface-active))'
+			}
   		},
   		borderRadius: {
   			lg: 'var(--radius)',

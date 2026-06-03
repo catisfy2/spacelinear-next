@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useStore } from "@/store/useStore";
 import { useAuth } from "@/hooks/useAuth";
-import { ChevronRight, Hash, Flame, PanelRight, Sparkles } from "lucide-react";
+import { ChevronRight, Hash, Flame, PanelRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   STATE_CONFIG,
@@ -32,14 +32,7 @@ export function TopicPage() {
   const params = useParams();
   const id = params?.id as string | undefined;
   const router = useRouter();
-  const {
-    topics,
-    subjects,
-    reviewHistory,
-    submitReview,
-    aiGenerationStatus,
-    startPollingAiContent,
-  } = useStore();
+  const { topics, subjects, reviewHistory, submitReview } = useStore();
   const { user } = useAuth();
 
   const [sidebarWidth, setSidebarWidth] = useState(320);
@@ -62,14 +55,17 @@ export function TopicPage() {
     : undefined;
 
   useEffect(() => {
-    if (
-      topic &&
-      !topic.description &&
-      aiGenerationStatus[topic.id] !== "done"
-    ) {
-      startPollingAiContent(topic.id);
-    }
-  }, [topic?.id, topic?.description]);
+    const handleResize = () => {
+      const desktop = window.innerWidth >= 768;
+      setIsDesktop(desktop);
+      if (!desktop) {
+        setIsSidebarCollapsed(true);
+      }
+    };
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   if (!topic) {
     return (
@@ -110,19 +106,6 @@ export function TopicPage() {
       setIsSubmittingDifficulty(false);
     }
   };
-
-  useEffect(() => {
-    const handleResize = () => {
-      const desktop = window.innerWidth >= 768;
-      setIsDesktop(desktop);
-      if (!desktop) {
-        setIsSidebarCollapsed(true);
-      }
-    };
-
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
 
   const handleToggleSidebar = () => {
     setIsSidebarCollapsed((prev) => !prev);
@@ -392,24 +375,12 @@ export function TopicPage() {
                     ))}
                   </div>
                 )}
-                {aiGenerationStatus[topic.id] === "pending" &&
-                  topic.tags.length === 0 && (
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                      <Sparkles className="w-3 h-3 text-purple-500 animate-pulse" />
-                      Generating tags...
-                    </div>
-                  )}
               </div>
 
               {topic.description ? (
                 <p className="mt-3 text-sm text-muted-foreground max-w-xl">
                   {topic.description}
                 </p>
-              ) : aiGenerationStatus[topic.id] === "pending" ? (
-                <div className="mt-3 flex items-center gap-2 text-sm text-muted-foreground">
-                  <Sparkles className="w-4 h-4 text-purple-500 animate-pulse" />
-                  AI is generating description...
-                </div>
               ) : null}
             </div>
           </div>

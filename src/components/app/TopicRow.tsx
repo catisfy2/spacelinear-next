@@ -1,71 +1,122 @@
-import Link from 'next/link';
-import { Flame, Sparkles } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { formatNextReview } from '@/lib/constants';
-import type { Subject, Topic } from '@/lib/types';
-import { TopicActionsMenu } from '@/components/topics/TopicActionsMenu';
-import { TopicStateBadge } from '@/components/app/TopicStateBadge';
-import { TopicDifficultyBadge } from '@/components/app/TopicDifficultyBadge';
-import { useStore } from '@/store/useStore';
+"use client";
+
+import { useRouter } from "next/navigation";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
+import { formatNextReview, DIFFICULTY_CONFIG } from "@/lib/constants";
+import type { Topic, Subject } from "@/lib/types";
+import { Checkbox } from "@/components/ui/checkbox";
+
+function formatSafeDate(
+  dateStr: string | null | undefined,
+  dateFormat: string,
+): string {
+  if (!dateStr) return "—";
+  const date = new Date(dateStr);
+  if (isNaN(date.getTime())) return "—";
+  return format(date, dateFormat);
+}
+
+const DIFFICULTY_BG_CLASS: Record<string, string> = {
+  relearn: "bg-sl-relearn/10 text-sl-relearn",
+  hard: "bg-sl-hard/10 text-sl-hard",
+  medium: "bg-sl-medium/10 text-sl-medium",
+  easy: "bg-sl-easy/10 text-sl-easy",
+};
 
 export function TopicRow({
   topic,
   subject,
+  selected,
+  onToggle,
   className,
 }: {
   topic: Topic;
   subject?: Subject;
+  selected?: boolean;
+  onToggle?: (id: string) => void;
   className?: string;
 }) {
+  const router = useRouter();
+  const isDue = (() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const d = new Date(topic.nextReviewDate);
+    d.setHours(0, 0, 0, 0);
+    return d < tomorrow;
+  })();
+  const statusDisplay =
+    topic.state === "new"
+      ? "New"
+      : topic.state === "backlog"
+        ? "Backlog"
+        : isDue
+          ? "Due now"
+          : formatNextReview(topic.nextReviewDate);
+
   return (
     <div
+      role="button"
+      tabIndex={0}
       className={cn(
-        'group flex w-full items-center gap-3 border-b border-border px-4 py-3 text-sm transition-colors last:border-b-0 hover:bg-accent/40',
+        "group flex w-full items-center justify-between px-[14px] py-[8px] transition-colors rounded-xl cursor-pointer",
+        selected ? "bg-sl-surface-hover" : "hover:bg-sl-surface-hover",
         className,
       )}
+      onClick={() => router.push(`/topics/${topic.id}`)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") router.push(`/topics/${topic.id}`);
+      }}
     >
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
-          <Link
-            href={`/topics/${topic.id}`}
-            className="block truncate text-left text-base font-medium text-foreground hover:text-primary"
-          >
-            {topic.title}
-          </Link>
-          {!topic.description && useStore.getState().aiGenerationStatus[topic.id] === 'pending' && (
-            <Sparkles className="w-3.5 h-3.5 text-purple-500 shrink-0 animate-pulse" />
+      <div className="flex items-center gap-[17px]">
+        <Checkbox
+          checked={selected}
+          className={cn(
+            "size-[16px]",
+            selected
+              ? "opacity-100"
+              : "opacity-0 group-hover:opacity-100 focus-visible:opacity-100",
           )}
-        </div>
-        {subject ? (
-          <div className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
-            <span aria-hidden>{subject.icon}</span>
-            <span className="truncate">{subject.name}</span>
-          </div>
-        ) : null}
-      </div>
-
-      <div className="hidden shrink-0 items-center gap-2 sm:flex">
-        <TopicStateBadge state={topic.state} />
-        {topic.currentDifficulty ? (
-          <TopicDifficultyBadge difficulty={topic.currentDifficulty} />
-        ) : null}
-      </div>
-
-      <div className="flex shrink-0 flex-col items-end gap-1 text-right sm:flex-row sm:items-center sm:gap-3">
-        <span className="font-mono text-xs text-muted-foreground">
-          {formatNextReview(topic.nextReviewDate)}
+          onClick={(e) => e.stopPropagation()}
+          onCheckedChange={() => onToggle?.(topic.id)}
+        />
+        <span className="font-medium text-[14px] text-foreground whitespace-nowrap">
+          {topic.title}
         </span>
-        {topic.streak > 0 ? (
-          <span className="flex items-center gap-0.5 text-xs tabular-nums text-sl-hard">
-            <Flame className="h-3 w-3" />
-            {topic.streak}
+      </div>
+      <div className="flex items-center gap-[45px]">
+        {subject && (
+          <span className="font-medium text-[14px] text-muted-foreground whitespace-nowrap">
+            {subject.icon} {subject.name}
           </span>
-        ) : (
-          <span className="w-8 sm:inline-block" aria-hidden />
         )}
-        <div className="opacity-0 transition-opacity group-hover:opacity-100">
-          <TopicActionsMenu topicId={topic.id} />
-        </div>
+        {topic.currentDifficulty && (
+          <span
+            className={cn(
+              "flex items-center justify-center px-[18px] py-[6px] rounded-full text-[12px] font-medium whitespace-nowrap",
+              DIFFICULTY_BG_CLASS[topic.currentDifficulty] ?? "",
+            )}
+          >
+            {DIFFICULTY_CONFIG[topic.currentDifficulty]?.label ??
+              topic.currentDifficulty}
+          </span>
+        )}
+        <span className="hidden group-hover:inline text-[12px] font-medium text-foreground whitespace-nowrap">
+          {topic.totalReviews} {topic.totalReviews === 1 ? "review" : "reviews"}
+        </span>
+        <span
+          className={cn(
+            "flex items-center justify-center shrink-0 text-[12px] font-medium whitespace-nowrap",
+            statusDisplay === "Due Now" ? "text-sl-relearn" : "text-foreground",
+          )}
+        >
+          {statusDisplay}
+        </span>
+        <span className="flex items-center justify-center w-[68px] text-[12px] font-medium text-foreground whitespace-nowrap shrink-0">
+          {formatSafeDate(topic.nextReviewDate, "d MMM")}
+        </span>
       </div>
     </div>
   );
