@@ -759,10 +759,27 @@ export const useStore = create<AppState>()((set, get) => ({
   },
 
   renameMaterial: async (id, name) => {
-    await supabase.from("materials").update({ name }).eq("id", id);
+    const oldMaterial = get().materials.find((m) => m.id === id);
+
+    const { error: matError } = await supabase.from("materials").update({ name }).eq("id", id);
+    if (matError) throw matError;
     set((s) => ({
       materials: s.materials.map((m) => (m.id === id ? { ...m, name } : m)),
     }));
+
+    // Sync question set title if linked via material_id and still using the old default title
+    const oldTitle = oldMaterial?.name ? `Quiz: ${oldMaterial.name}` : null;
+    let query = (supabase as any)
+      .from("question_sets")
+      .update({ title: `Quiz: ${name}` })
+      .eq("material_id", id);
+    if (oldTitle) {
+      query = query.eq("title", oldTitle);
+    }
+    const { error: setError } = await query;
+    if (setError) {
+      console.error("Failed to update question set title:", setError);
+    }
   },
 
   deleteMaterial: async (id) => {
@@ -948,6 +965,7 @@ export const useStore = create<AppState>()((set, get) => ({
     const maxAttempts = 30;
     const interval = setInterval(async () => {
       attempts += 1;
+      // Check the old quizzes table (Inngest inserts into both old and new tables)
       const { count } = await supabase
         .from("quizzes")
         .select("*", { count: "exact", head: true })

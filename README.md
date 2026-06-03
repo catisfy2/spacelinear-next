@@ -90,7 +90,7 @@ src/
 
 ## Deployment
 
-SpaceLinear can be deployed to any platform that supports Next.js, such as Vercel, Netlify, or a custom server.
+SpaceLinear can be deployed to any platform that supports Next.js, such as Vercel, Netlify, and/or a custom server.
 
 ```sh
 npm run build
