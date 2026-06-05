@@ -82,7 +82,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <SidebarProvider>
       <AutoCloseMobileSidebar />
       <div className="flex h-screen w-full">
-        <Sidebar />
+        <Sidebar onOpenCreateTopic={() => setShowCreateTopic(true)} />
         <SidebarInset className="overflow-hidden">
           <MobileTrigger />
           <div className={cn("flex-1 overflow-y-auto", isMobile && "pt-14")}>
