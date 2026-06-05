@@ -25,6 +25,7 @@ import {
   IconTopics,
   IconSchedule,
   IconPerformance,
+  IconQuiz,
 } from "./SidebarIcons";
 
 interface SidebarProps {
@@ -46,7 +47,13 @@ export function Sidebar({ onOpenCreateTopic }: SidebarProps) {
     { href: "/today", label: "Today", icon: IconToday, exact: true },
     { href: "/topics", label: "Topics", icon: IconTopics },
     { href: "/schedule", label: "Schedule", icon: IconSchedule },
-    { href: "/pulse", label: "Performance", icon: IconPerformance, exact: true },
+    { href: "/quiz", label: "Quiz", icon: IconQuiz, exact: true },
+    {
+      href: "/pulse",
+      label: "Performance",
+      icon: IconPerformance,
+      exact: true,
+    },
   ];
 
   function isActive(href: string, exact?: boolean) {
@@ -92,7 +99,9 @@ export function Sidebar({ onOpenCreateTopic }: SidebarProps) {
                 >
                   <Link href={item.href}>
                     <item.icon className="size-[16px] group-data-[collapsible=icon]:size-[18px]" />
-                    <span className={`text-sm font-medium transition-opacity group-data-[collapsible=icon]:hidden ${isActive(item.href, item.exact) ? "opacity-100" : "opacity-85 group-hover/menu-item:opacity-100"}`}>
+                    <span
+                      className={`text-sm font-medium transition-opacity group-data-[collapsible=icon]:hidden ${isActive(item.href, item.exact) ? "opacity-100" : "opacity-85 group-hover/menu-item:opacity-100"}`}
+                    >
                       {item.label}
                     </span>
                   </Link>
