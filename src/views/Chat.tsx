@@ -252,6 +252,16 @@ export function ChatPage() {
     [user, activeConversationId, conversations, messages, isStreaming],
   );
 
+  // Prefill message from ?q= query param
+  const qParam = searchParams.get("q");
+  const qSent = useRef(false);
+  useEffect(() => {
+    if (qParam && user && !activeConversationId && !qSent.current) {
+      qSent.current = true;
+      handleSend(qParam);
+    }
+  }, [qParam, user, activeConversationId, handleSend]);
+
   const handleSuggestionClick = useCallback(
     async (suggestion: string) => {
       if (inputRef.current) {
