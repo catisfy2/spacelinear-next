@@ -14,34 +14,32 @@ import { Input } from "@/components/ui/input";
 export function ChatHistoryPage() {
   const router = useRouter();
   const { user } = useAuth();
+  const userId = user?.id ?? null;
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
 
   useEffect(() => {
-    if (!user) return;
-    fetchAllConversations();
-  }, [user]);
-
-  const fetchAllConversations = async () => {
-    if (!user) return;
+    if (!userId) return;
     setLoading(true);
-    const { data } = await supabase
+    supabase
       .from("conversations")
       .select("*")
-      .eq("user_id", user.id)
-      .order("updated_at", { ascending: false });
-    setConversations(
-      (data ?? []).map((r) => ({
-        id: r.id,
-        userId: r.user_id,
-        title: r.title,
-        createdAt: r.created_at,
-        updatedAt: r.updated_at,
-      })),
-    );
-    setLoading(false);
-  };
+      .eq("user_id", userId)
+      .order("updated_at", { ascending: false })
+      .then(({ data }) => {
+        setConversations(
+          (data ?? []).map((r) => ({
+            id: r.id,
+            userId: r.user_id,
+            title: r.title,
+            createdAt: r.created_at,
+            updatedAt: r.updated_at,
+          })),
+        );
+        setLoading(false);
+      });
+  }, [userId]);
 
   const deleteConversation = async (id: string) => {
     await supabase.from("conversations").delete().eq("id", id);

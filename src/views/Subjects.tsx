@@ -10,6 +10,7 @@ import { startOfDay } from 'date-fns';
 import { PageShell } from '@/components/app/PageShell';
 import { PageHeader } from '@/components/app/PageHeader';
 import { Button } from '@/components/ui/button';
+import { AgentPanel } from "@/components/agent/AgentPanel";
 
 export function SubjectsPage() {
   const { subjects, topics } = useStore();
@@ -90,6 +91,7 @@ export function SubjectsPage() {
       )}
 
       {showCreate && <CreateSubjectModal onClose={() => setShowCreate(false)} />}
+      <AgentPanel context="subjects" />
     </PageShell>
   );
 }

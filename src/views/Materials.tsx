@@ -18,6 +18,7 @@ import { EmptyState } from "@/components/materials/EmptyState";
 import { UploadButton } from "@/components/materials/UploadButton";
 import { toast } from "sonner";
 import type { Material } from "@/lib/types";
+import { AgentPanel } from "@/components/agent/AgentPanel";
 import type {
   ViewMode,
   SortField,
@@ -25,6 +26,7 @@ import type {
 
 export function MaterialsPage() {
   const { user } = useAuth();
+  const userId = user?.id ?? null;
   const {
     materials,
     currentFolderId,
@@ -60,9 +62,9 @@ export function MaterialsPage() {
 
   // Load materials on mount and on folder change
   useEffect(() => {
-    if (!user) return;
-    fetchMaterials(user.id, currentFolderId);
-  }, [user, currentFolderId, fetchMaterials]);
+    if (!userId) return;
+    fetchMaterials(userId, currentFolderId);
+  }, [userId, currentFolderId, fetchMaterials]);
 
   // Load breadcrumbs when folder changes
   useEffect(() => {
@@ -122,40 +124,40 @@ export function MaterialsPage() {
 
   const handleCreateFolder = useCallback(
     async (name: string) => {
-      if (!user) return;
-      await createFolder(name, currentFolderId, user.id);
+      if (!userId) return;
+      await createFolder(name, currentFolderId, userId);
       toast.success(`Folder "${name}" created`);
     },
-    [user, currentFolderId, createFolder],
+    [userId, currentFolderId, createFolder],
   );
 
   const handleUploadFiles = useCallback(
     async (files: FileList) => {
-      if (!user) return;
+      if (!userId) return;
       for (const file of Array.from(files)) {
-        await uploadFile(file, currentFolderId, user.id);
+        await uploadFile(file, currentFolderId, userId);
         toast.success(`Uploaded "${file.name}" — generating quizzes...`);
       }
     },
-    [user, currentFolderId, uploadFile],
+    [userId, currentFolderId, uploadFile],
   );
 
   const handleAddLink = useCallback(
     async (name: string, url: string) => {
-      if (!user) return;
-      await addLink(name, url, currentFolderId, user.id);
+      if (!userId) return;
+      await addLink(name, url, currentFolderId, userId);
       toast.success("Link added — generating quizzes...");
     },
-    [user, currentFolderId, addLink],
+    [userId, currentFolderId, addLink],
   );
 
   const handleAddText = useCallback(
     async (name: string, content: string) => {
-      if (!user) return;
-      await addText(name, content, currentFolderId, user.id);
+      if (!userId) return;
+      await addText(name, content, currentFolderId, userId);
       toast.success("Text note added — generating quizzes...");
     },
-    [user, currentFolderId, addText],
+    [userId, currentFolderId, addText],
   );
 
   const pendingQuizCount = Object.values(quizGenerationStatus).filter(
@@ -330,6 +332,7 @@ export function MaterialsPage() {
           onConfirm={handleDelete}
         />
       )}
+      <AgentPanel context="materials" />
     </PageShell>
   );
 }

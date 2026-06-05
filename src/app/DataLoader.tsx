@@ -7,18 +7,19 @@ import { Loader2 } from "lucide-react";
 
 export function DataLoader({ children }: { children: ReactNode }) {
   const { user } = useAuth();
+  const userId = user?.id ?? null;
   const { fetchAll, clear, loading } = useStore();
   const prevUserId = useRef<string | null>(null);
 
   useEffect(() => {
-    if (user && user.id !== prevUserId.current) {
-      prevUserId.current = user.id;
-      fetchAll(user.id);
-    } else if (!user && prevUserId.current) {
+    if (userId && userId !== prevUserId.current) {
+      prevUserId.current = userId;
+      fetchAll(userId);
+    } else if (!userId && prevUserId.current) {
       prevUserId.current = null;
       clear();
     }
-  }, [user, fetchAll, clear]);
+  }, [userId, fetchAll, clear]);
 
   if (user && loading) {
     return (

@@ -35,6 +35,7 @@ import {
 } from "@/components/today";
 import { getCalendarReviewStreak } from "@/lib/stats";
 import { cn } from "@/lib/utils";
+import { AgentPanel } from "@/components/agent/AgentPanel";
 
 // ─── helpers ───────────────────────────────────────────────────────────
 
@@ -300,18 +301,14 @@ export function TodayPage() {
                   const sub = subjects.find((s) => s.id === topic.subjectId);
                   const isReviewed = reviewedIds.has(topic.id);
                   return (
-                    <li
+                    <TodayTopicItem
                       key={topic.id}
-                      className="animate-slide-up"
-                      style={{ animationDelay: `${i * 0.04}s`, animationFillMode: 'backwards' }}
-                    >
-                      <TodayTopicItem
-                        topic={topic}
-                        subject={sub}
-                        isReviewed={isReviewed}
-                        onReview={openDialog}
-                      />
-                    </li>
+                      topic={topic}
+                      subject={sub}
+                      isReviewed={isReviewed}
+                      onReview={openDialog}
+                      animationDelay={`${i * 0.04}s`}
+                    />
                   );
                 })}
               </ul>
@@ -428,6 +425,7 @@ export function TodayPage() {
           </div>
         ) : null}
       </DragOverlay>
+      <AgentPanel context="today" />
     </DndContext>
   );
 }

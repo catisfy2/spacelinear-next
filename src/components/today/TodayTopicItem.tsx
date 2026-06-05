@@ -22,6 +22,7 @@ interface TodayTopicItemProps {
   subject?: Subject;
   isReviewed: boolean;
   onReview: (topic: Topic) => void;
+  animationDelay?: string;
 }
 
 export function TodayTopicItem({
@@ -29,6 +30,7 @@ export function TodayTopicItem({
   subject,
   isReviewed,
   onReview,
+  animationDelay,
 }: TodayTopicItemProps) {
   const isDraggable = topic.state === "new" && !isReviewed;
 
@@ -46,7 +48,12 @@ export function TodayTopicItem({
   return (
     <li
       ref={isDraggable ? setNodeRef : undefined}
-      style={isDraggable ? dragStyle : undefined}
+      style={{
+        ...(isDraggable ? dragStyle : undefined),
+        ...(animationDelay
+          ? { animationDelay, animationFillMode: "backwards" as const }
+          : undefined),
+      }}
       {...(isDraggable ? listeners : {})}
       {...(isDraggable ? attributes : {})}
       className={cn(
@@ -54,6 +61,7 @@ export function TodayTopicItem({
         isReviewed && "opacity-40",
         isDragging && "opacity-30",
         !isReviewed && !isDragging && "hover:bg-accent/40",
+        animationDelay && "animate-slide-up",
       )}
     >
       {/* colored bullet */}

@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/select";
 import { Toggle } from "@/components/ui/toggle";
 import { toast } from "sonner";
+import { AgentPanel } from "@/components/agent/AgentPanel";
 
 type SortField = "updated_at" | "created_at" | "title";
 
@@ -195,6 +196,7 @@ export function NotesPage() {
           ))}
         </div>
       )}
+      <AgentPanel context="notes" />
     </PageShell>
   );
 }

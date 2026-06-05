@@ -86,7 +86,7 @@ export function Sidebar() {
     { href: "/quiz", label: "Quiz", icon: HelpCircle },
     { href: "/materials", label: "Materials", icon: FileText },
     { href: "/notes", label: "Notes", icon: StickyNote },
-    { href: "/agent", label: "Agent", icon: Wand2 },
+    { href: "/general", label: "Agent", icon: Wand2 },
   ];
 
   function isActive(href: string, exact?: boolean) {

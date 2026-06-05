@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import type { Quiz } from "@/lib/types";
+import { AgentPanel } from "@/components/agent/AgentPanel";
 
 export function QuizPage() {
   const { user } = useAuth();
@@ -293,6 +294,7 @@ export function QuizPage() {
           </Button>
         </div>
       )}
+      <AgentPanel context="quiz" />
     </PageShell>
   );
 }

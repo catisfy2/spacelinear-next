@@ -34,6 +34,7 @@ import {
 import { Command, CommandGroup, CommandItem } from "@/components/ui/command";
 import { Checkbox } from "@/components/ui/checkbox";
 import { EmptyState } from "@/components/app/EmptyState";
+import { AgentPanel } from "@/components/agent/AgentPanel";
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -195,8 +196,11 @@ export function TopicsPage() {
     topicList.map((topic, i) => (
       <div
         key={topic.id}
-        className="animate-slide-up"
-        style={{ animationDelay: `${i * 0.025}s`, animationFillMode: 'backwards' }}
+        className="animate-slide-up w-full"
+        style={{
+          animationDelay: `${i * 0.025}s`,
+          animationFillMode: "backwards",
+        }}
       >
         <TopicRow
           topic={topic}
@@ -476,6 +480,7 @@ export function TopicsPage() {
       >
         <ChevronUp className="size-full" />
       </button>
+      <AgentPanel context="topics" />
     </div>
   );
 }
