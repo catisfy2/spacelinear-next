@@ -87,7 +87,9 @@ export function useQuestionSets() {
     queryKey: ["question-sets"],
     queryFn: async (): Promise<QuestionSetListItem[]> => {
       const token = await getAccessToken();
-      const res = await fetch(`/api/quiz/sets?accessToken=${encodeURIComponent(token)}`);
+      const res = await fetch(
+        `/api/quiz/sets?accessToken=${encodeURIComponent(token)}`,
+      );
       if (!res.ok) throw new Error("Failed to fetch question sets");
       const data = await res.json();
       return data.sets;
@@ -137,7 +139,10 @@ export function useStartQuickPractice() {
         questions: data.questions,
       } as {
         session: QuizSession;
-        questions: Pick<Question, "id" | "question" | "options" | "difficulty" | "tags">[];
+        questions: Pick<
+          Question,
+          "id" | "question" | "options" | "difficulty" | "tags"
+        >[];
       };
     },
     onSuccess: () => {
@@ -170,7 +175,10 @@ export function useStartTopicSet() {
         set: data.set,
       } as {
         session: QuizSession;
-        questions: Pick<Question, "id" | "question" | "options" | "difficulty" | "tags">[];
+        questions: Pick<
+          Question,
+          "id" | "question" | "options" | "difficulty" | "tags"
+        >[];
         set: QuestionSet;
       };
     },
@@ -210,7 +218,10 @@ export function useStartMockTest() {
         timeLimitMinutes: data.timeLimitMinutes,
       } as {
         session: QuizSession;
-        questions: Pick<Question, "id" | "question" | "options" | "difficulty" | "tags">[];
+        questions: Pick<
+          Question,
+          "id" | "question" | "options" | "difficulty" | "tags"
+        >[];
         timeLimitMinutes: number;
       };
     },
@@ -225,7 +236,9 @@ export function useStartMockTest() {
 /** Submit a single answer for the current session question. */
 export function useSubmitAnswer() {
   return useMutation({
-    mutationFn: async (req: SubmitAnswerRequest & { timeTakenSeconds?: number }) => {
+    mutationFn: async (
+      req: SubmitAnswerRequest & { timeTakenSeconds?: number },
+    ) => {
       const token = await getAccessToken();
       const res = await fetch("/api/quiz/submit-answer", {
         method: "POST",
@@ -258,7 +271,11 @@ export function useCompleteSession() {
       const res = await fetch("/api/quiz/complete", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sessionId, timeTakenSeconds, accessToken: token }),
+        body: JSON.stringify({
+          sessionId,
+          timeTakenSeconds,
+          accessToken: token,
+        }),
       });
       if (!res.ok) {
         const err = await res.json();
@@ -282,7 +299,11 @@ export function useSessions(page: number = 1, mode?: string) {
     queryKey: ["quiz-sessions", page, mode],
     queryFn: async () => {
       const token = await getAccessToken();
-      const params = new URLSearchParams({ accessToken: token, page: String(page), limit: "20" });
+      const params = new URLSearchParams({
+        accessToken: token,
+        page: String(page),
+        limit: "20",
+      });
       if (mode) params.set("mode", mode);
       const res = await fetch(`/api/quiz/sessions?${params}`);
       if (!res.ok) throw new Error("Failed to fetch sessions");
@@ -307,7 +328,9 @@ export function useSessionDetail(sessionId: string | null) {
     queryFn: async (): Promise<QuizSessionSummary> => {
       if (!sessionId) throw new Error("No session ID");
       const token = await getAccessToken();
-      const res = await fetch(`/api/quiz/sessions/${sessionId}?accessToken=${encodeURIComponent(token)}`);
+      const res = await fetch(
+        `/api/quiz/sessions/${sessionId}?accessToken=${encodeURIComponent(token)}`,
+      );
       if (!res.ok) throw new Error("Failed to fetch session");
       const data = await res.json();
       return {
@@ -343,7 +366,12 @@ export function useUpdateQuestionSet() {
       const res = await fetch(`/api/quiz/sets/${setId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title, topicId, materialId, accessToken: token }),
+        body: JSON.stringify({
+          title,
+          topicId,
+          materialId,
+          accessToken: token,
+        }),
       });
       if (!res.ok) {
         const err = await res.json();
@@ -357,6 +385,23 @@ export function useUpdateQuestionSet() {
   });
 }
 
+// ─── Insights ──────────────────────────────────────────────────────────
+
+/** Fetch combined study insights (topic study + quiz performance). */
+export function useInsights() {
+  return useQuery({
+    queryKey: ["quiz-insights"],
+    queryFn: async () => {
+      const token = await getAccessToken();
+      const res = await fetch(
+        `/api/quiz/insights?accessToken=${encodeURIComponent(token)}`,
+      );
+      if (!res.ok) throw new Error("Failed to fetch insights");
+      return res.json();
+    },
+  });
+}
+
 // ─── Performance Data ───────────────────────────────────────────────────
 
 /** Fetch aggregated performance/analytics data for the current user. */
@@ -365,7 +410,9 @@ export function usePerformanceData() {
     queryKey: ["quiz-performance"],
     queryFn: async (): Promise<PerformanceData> => {
       const token = await getAccessToken();
-      const res = await fetch(`/api/quiz/performance?accessToken=${encodeURIComponent(token)}`);
+      const res = await fetch(
+        `/api/quiz/performance?accessToken=${encodeURIComponent(token)}`,
+      );
       if (!res.ok) throw new Error("Failed to fetch performance data");
       return res.json();
     },
