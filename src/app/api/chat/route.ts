@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { groq } from "@ai-sdk/groq";
 import { streamText } from "ai";
+import {
+  parseActionBlocks,
+  stripActionBlocks,
+  createActionExecutor,
+} from "@/lib/agent-tools";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -17,7 +22,52 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const systemPrompt = `You are a helpful AI study assistant. You help students learn, understand concepts, create study plans, and answer questions about their study materials. Be concise, clear, and encouraging. Use examples and analogies when helpful.`;
+    // ── Agent-capable system prompt ──────────────────────────────────────
+    const systemPrompt = `You are SpaceLinear, an intelligent AI study assistant that helps students learn effectively. You have the ability to CREATE things in the user's study space — subjects, topics, notes, study materials, quiz sets, and quiz questions.
+
+## Your Capabilities
+
+1. **Answer questions** — explain concepts, provide examples, help with understanding
+2. **Create subjects** — organize study areas (e.g., "Machine Learning", "Physics")
+3. **Create topics** under subjects for spaced-repetition studying
+4. **Create study notes** — save rich text content the user can reference later
+5. **Create study materials** — save reference documents and cheat sheets
+6. **Create quiz sets** — generate full quiz question sets that appear in the Question Sets section
+7. **Create quiz questions** — generate individual multiple-choice practice questions
+
+## How to Take Actions
+
+If the user asks you to create, make, add, or generate something, you MUST include a special action block at the END of your response after any explanatory text:
+
+\`\`\`
+[ACTION]
+{
+  "action": "createSubject",
+  "params": { "name": "Machine Learning", "description": "..." }
+}
+[/ACTION]
+\`\`\`
+
+Available actions and their parameters:
+
+- \`createSubject\`: { "name": string, "description"?: string, "color"?: string, "icon"?: string }
+- \`createTopic\`: { "title": string, "subjectName": string, "description"?: string, "notes"?: string, "tags"?: string[] }
+- \`createNote\`: { "title": string, "content": string, "tags"?: string[] }
+- \`createMaterial\`: { "name": string, "content": string }
+- \`createQuizSet\`: { "title": string, "questions": [{ "question": string, "options": [4 strings], "answer": string, "explanation"?: string, "difficulty"?: string }], "timeLimit"?: number (minutes), "topicName"?: string, "difficulty"?: string }
+- \`createQuizQuestions\`: { "questions": [{ "question": string, "options": [4 strings], "answer": string, "subject"?: string, "topic"?: string, "tags"?: string[] }] }
+
+IMPORTANT RULES:
+- Always put the action block at the VERY END of your response.
+- When the user asks to create a quiz with a specific number of questions and time limit, use \`createQuizSet\`. This is the PRIMARY action for creating quizzes — it creates a full question set that appears in the Quiz Sets section.
+- For \`createQuizSet\`, generate the actual questions yourself based on the topic. Use the exact number of questions the user requests. Include 4 options per question and mark the correct answer. Optionally provide an explanation and difficulty level for each question.
+- If the user specifies a time limit (e.g., "10 minutes"), pass it as \`timeLimit\` (in minutes).
+- If the user mentions a topic (e.g., "on xyz"), pass it as \`topicName\`. The system will link the quiz set to that topic.
+- Use \`createQuizQuestions\` only for creating standalone practice questions outside of a quiz set.
+- When creating a subject or topic, tell the user what you're creating.
+- After creating something, tell the user what was created and give a helpful summary.
+- If the user doesn't specify details (like subject name), ask them what they want.
+- Be concise, clear, and encouraging. Use examples and analogies when helpful.`;
 
     const groqMessages = [
       { role: "system" as const, content: systemPrompt },
@@ -49,45 +99,88 @@ export async function POST(req: NextRequest) {
       model: groq("llama-3.3-70b-versatile"),
       messages: groqMessages,
       onFinish: async ({ text }) => {
-        // Save assistant message to DB after streaming completes
-        if (conversationId && accessToken && text) {
+        if (!conversationId || !accessToken || !text) return;
+
+        try {
+          // 1. Parse action blocks
+          const actionBlocks = parseActionBlocks(text);
+          const cleanText = stripActionBlocks(text);
+          let savedText = cleanText;
+
+          // 2. Execute actions
+          if (actionBlocks.length > 0) {
+            const executor = createActionExecutor(accessToken);
+            const actionResults: string[] = [];
+
+            for (const block of actionBlocks) {
+              const result = await executor.execute(block);
+              if (result.success) {
+                actionResults.push(result.message);
+              } else {
+                console.error(
+                  `Action failed: ${result.action} — ${result.message}`,
+                );
+              }
+            }
+
+            // 3. Prepend action confirmations if not already in the text
+            if (actionResults.length > 0) {
+              const confirmations = actionResults
+                .map((m) => `✅ ${m}`)
+                .join("\n");
+              if (!cleanText.includes(actionResults[0]!.slice(0, 30))) {
+                savedText = `${confirmations}\n\n${cleanText}`;
+              }
+            }
+          }
+
+          // 4. Save to database
+          const authClient = createClient(supabaseUrl, supabaseAnonKey, {
+            auth: { persistSession: false, autoRefreshToken: false },
+            global: { headers: { Authorization: `Bearer ${accessToken}` } },
+          });
+
+          await authClient.from("messages").insert({
+            conversation_id: conversationId,
+            role: "assistant",
+            content: savedText,
+          });
+
+          // 5. Auto-title from the first user message
+          const firstUserMsg = messages.find(
+            (m: { role: string }) => m.role === "user",
+          );
+          if (firstUserMsg) {
+            const { data: msgCount } = await authClient
+              .from("messages")
+              .select("id", { count: "exact", head: true })
+              .eq("conversation_id", conversationId);
+
+            if (msgCount && msgCount.length <= 2) {
+              const title =
+                firstUserMsg.content.slice(0, 60) +
+                (firstUserMsg.content.length > 60 ? "..." : "");
+              await authClient
+                .from("conversations")
+                .update({ title, updated_at: new Date().toISOString() })
+                .eq("id", conversationId);
+            }
+          }
+        } catch (err) {
+          console.error("Failed to process assistant response:", err);
+          // Fallback: save raw text if processing fails
           try {
             const authClient = createClient(supabaseUrl, supabaseAnonKey, {
               auth: { persistSession: false, autoRefreshToken: false },
-              global: {
-                headers: { Authorization: `Bearer ${accessToken}` },
-              },
+              global: { headers: { Authorization: `Bearer ${accessToken}` } },
             });
-
             await authClient.from("messages").insert({
               conversation_id: conversationId,
               role: "assistant",
-              content: text,
+              content: stripActionBlocks(text),
             });
-
-            // Auto-title from the first user message
-            const firstUserMsg = messages.find(
-              (m: { role: string }) => m.role === "user",
-            );
-            if (firstUserMsg) {
-              const { data: msgCount } = await authClient
-                .from("messages")
-                .select("id", { count: "exact", head: true })
-                .eq("conversation_id", conversationId);
-
-              // If only 2 messages (user + assistant), it's the first exchange
-              if (msgCount && msgCount.length <= 2) {
-                const title =
-                  firstUserMsg.content.slice(0, 60) +
-                  (firstUserMsg.content.length > 60 ? "..." : "");
-                await authClient
-                  .from("conversations")
-                  .update({ title, updated_at: new Date().toISOString() })
-                  .eq("id", conversationId);
-              }
-            }
-          } catch (err) {
-            console.error("Failed to save assistant message:", err);
+          } catch {
+            // Ignore fallback save errors
           }
         }
       },

@@ -9,6 +9,7 @@ export interface PersistedQuizState {
   answeredCount: number;
   timeLimitMinutes: number;
   timeRemaining: number;
+  elapsedSeconds?: number;
   questions: Array<{
     id: string;
     question: string;
@@ -62,7 +63,11 @@ export function useQuizPersistence(
     if (phase === "active" && currentState && sessionId) {
       sessionStorage.setItem(
         storageKey,
-        JSON.stringify({ ...currentState, mode, path: window.location.pathname }),
+        JSON.stringify({
+          ...currentState,
+          mode,
+          path: window.location.pathname,
+        }),
       );
     }
   }, [phase, currentState, sessionId, storageKey, mode]);
@@ -70,7 +75,8 @@ export function useQuizPersistence(
   // Detect SPA navigation via effect cleanup (runs on unmount, not on dep change)
   useEffect(() => {
     return () => {
-      const isReload = sessionStorage.getItem(storageKey + "-reloading") === "1";
+      const isReload =
+        sessionStorage.getItem(storageKey + "-reloading") === "1";
       if (!isReload && phaseRef.current === "active" && sessionIdRef.current) {
         sessionStorage.removeItem(storageKey);
         onSpaNavigateRef.current();
@@ -86,7 +92,8 @@ export function useQuizPersistence(
     try {
       const data = JSON.parse(raw);
       if (
-        !data || typeof data !== "object" ||
+        !data ||
+        typeof data !== "object" ||
         data.path !== window.location.pathname ||
         data.mode !== mode ||
         !Array.isArray(data.questions) ||
@@ -99,8 +106,24 @@ export function useQuizPersistence(
         sessionStorage.removeItem(storageKey);
         return null;
       }
-      const { questions, currentIndex, answeredCount, timeLimitMinutes, timeRemaining, sessionId } = data;
-      return { questions, currentIndex, answeredCount, timeLimitMinutes, timeRemaining, sessionId };
+      const {
+        questions,
+        currentIndex,
+        answeredCount,
+        timeLimitMinutes,
+        timeRemaining,
+        elapsedSeconds,
+        sessionId,
+      } = data;
+      return {
+        questions,
+        currentIndex,
+        answeredCount,
+        timeLimitMinutes,
+        timeRemaining,
+        elapsedSeconds: elapsedSeconds ?? 0,
+        sessionId,
+      };
     } catch {
       sessionStorage.removeItem(storageKey);
       return null;

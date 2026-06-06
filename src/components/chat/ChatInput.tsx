@@ -1,16 +1,11 @@
 "use client";
 
-import {
-  forwardRef,
-  useState,
-  useRef,
-  useEffect,
-  useCallback,
-} from "react";
-import { ArrowUp, Plus } from "lucide-react";
+import { forwardRef, useState, useRef, useEffect, useCallback } from "react";
+import { ArrowUp, Mic, MicOff, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CommandMenu } from "@/components/chat/CommandMenu";
 import { MentionMenu } from "@/components/chat/MentionMenu";
+import { useSpeechToText } from "@/hooks/useSpeechToText";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import type { Resource } from "@/lib/types";
@@ -24,6 +19,17 @@ export const ChatInput = forwardRef<HTMLTextAreaElement, ChatInputProps>(
   function ChatInput({ onSend, isStreaming }, ref) {
     const { user } = useAuth();
     const [value, setValue] = useState("");
+    const {
+      isSupported: sttSupported,
+      isListening: sttListening,
+      isProcessing: sttProcessing,
+      error: sttError,
+      transcript: sttTranscript,
+      startListening: sttStart,
+      stopListening: sttStop,
+      toggleListening: sttToggle,
+      resetTranscript: sttReset,
+    } = useSpeechToText();
     const [showCommands, setShowCommands] = useState(false);
     const [showMentions, setShowMentions] = useState(false);
     const [mentionQuery, setMentionQuery] = useState("");
@@ -33,14 +39,23 @@ export const ChatInput = forwardRef<HTMLTextAreaElement, ChatInputProps>(
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const commandsRef = useRef<HTMLDivElement>(null);
     const mentionsRef = useRef<HTMLDivElement>(null);
+    const valueRef = useRef(value);
+
+    // Keep valueRef in sync
+    useEffect(() => {
+      valueRef.current = value;
+    }, [value]);
 
     // Combine forwarded ref with local ref
     const setRefs = useCallback(
       (el: HTMLTextAreaElement | null) => {
-        (textareaRef as React.MutableRefObject<HTMLTextAreaElement | null>)
-          .current = el;
+        (
+          textareaRef as React.MutableRefObject<HTMLTextAreaElement | null>
+        ).current = el;
         if (typeof ref === "function") ref(el);
-        else if (ref) (ref as React.MutableRefObject<HTMLTextAreaElement | null>).current = el;
+        else if (ref)
+          (ref as React.MutableRefObject<HTMLTextAreaElement | null>).current =
+            el;
       },
       [ref],
     );
@@ -113,17 +128,67 @@ export const ChatInput = forwardRef<HTMLTextAreaElement, ChatInputProps>(
           }
         }
 
-        // Add mock agents
+        // Add agent actions for creating study items
+        items.push({
+          type: "agent",
+          label: "✨ New Subject",
+          action:
+            "Create a new subject for me to study. I'll tell you the name.",
+        });
+        items.push({
+          type: "agent",
+          label: "✨ New Topic",
+          action: "Create a new topic for me to study under a subject.",
+        });
+        items.push({
+          type: "agent",
+          label: "✨ New Note",
+          action: "Create a new note with study content for me.",
+        });
+        items.push({
+          type: "agent",
+          label: "✨ New Quiz",
+          action:
+            "Create a practice quiz with multiple-choice questions for me.",
+        });
+        items.push({
+          type: "agent",
+          label: "✨ Study Material",
+          action: "Create a study material or reference document for me.",
+        });
+
+        // Add role agents
         items.push({
           type: "agent",
           label: "Physics Teacher",
-          action: "Act as a physics teacher and help me understand physics concepts.",
+          action:
+            "Act as a physics teacher and help me understand physics concepts.",
         });
 
         setMentionItems(items);
       },
       [user],
     );
+
+    // Sync speech-to-text transcript into textarea
+    useEffect(() => {
+      if (!sttTranscript) return;
+
+      const currentValue = valueRef.current;
+      const baseValue = currentValue.replace(/\s*$/, "");
+
+      if (sttTranscript.startsWith(baseValue) && baseValue.length > 0) {
+        // Transcript continues from the existing text — update in place
+        setValue(sttTranscript);
+      } else if (baseValue.length === 0) {
+        // Empty textarea — set directly
+        setValue(sttTranscript);
+      } else if (!sttTranscript.startsWith(baseValue)) {
+        // New utterance — append after existing text
+        setValue(baseValue + " " + sttTranscript);
+      }
+      // If transcript starts with baseValue and baseValue is already set, do nothing
+    }, [sttTranscript]);
 
     // Handle input changes
     const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -202,6 +267,37 @@ export const ChatInput = forwardRef<HTMLTextAreaElement, ChatInputProps>(
             <Plus className="h-4 w-4" />
           </button>
 
+          {/* ── Speech-to-Text button ── */}
+          {sttSupported && (
+            <button
+              type="button"
+              onClick={() => {
+                if (sttListening) {
+                  sttStop();
+                } else {
+                  sttReset();
+                  sttStart();
+                }
+              }}
+              disabled={isStreaming}
+              className={cn(
+                "mb-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg transition-colors",
+                sttListening
+                  ? "bg-destructive text-destructive-foreground shadow-[0_0_12px_hsl(var(--destructive)/0.5)]"
+                  : "text-muted-foreground hover:bg-accent/50 hover:text-foreground",
+                sttProcessing && !sttListening && "animate-pulse",
+              )}
+              aria-label={sttListening ? "Stop recording" : "Start voice input"}
+              title={sttListening ? "Stop recording" : "Start voice input"}
+            >
+              {sttListening ? (
+                <MicOff className="h-4 w-4" />
+              ) : (
+                <Mic className="h-4 w-4" />
+              )}
+            </button>
+          )}
+
           <textarea
             ref={setRefs}
             value={value}
@@ -233,6 +329,19 @@ export const ChatInput = forwardRef<HTMLTextAreaElement, ChatInputProps>(
             <ArrowUp className="h-4 w-4" />
           </button>
         </div>
+
+        {sttError && !sttListening && (
+          <p className="mt-1.5 text-center text-xs text-destructive">
+            {sttError}
+          </p>
+        )}
+
+        {sttListening && (
+          <p className="mt-1.5 animate-pulse text-center text-xs text-destructive">
+            <span className="inline-block h-2 w-2 rounded-full bg-destructive mr-1.5 align-middle" />
+            Listening...
+          </p>
+        )}
 
         {isStreaming && (
           <p className="mt-1.5 text-center text-xs text-muted-foreground">
