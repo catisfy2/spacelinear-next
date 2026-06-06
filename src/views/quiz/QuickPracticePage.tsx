@@ -2,7 +2,12 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "@/hooks/useAuth";
-import { useStartQuickPractice, useSubmitAnswer, useCompleteSession, useSessionDetail } from "@/hooks/useQuiz";
+import {
+  useStartQuickPractice,
+  useSubmitAnswer,
+  useCompleteSession,
+  useSessionDetail,
+} from "@/hooks/useQuiz";
 import { PageShell } from "@/components/app/PageShell";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -12,7 +17,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { EmptyState } from "@/components/app/EmptyState";
 import { useQuizPersistence } from "@/hooks/useQuizPersistence";
-import { Loader2, BrainCircuit, CheckCircle2, XCircle, Timer } from "lucide-react";
+import {
+  Loader2,
+  BrainCircuit,
+  CheckCircle2,
+  XCircle,
+  Timer,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatTime } from "@/types/quiz";
 import type { Question } from "@/types/quiz";
@@ -26,7 +37,9 @@ export function QuickPracticePage() {
 
   const [phase, setPhase] = useState<Phase>("idle");
   const [sessionId, setSessionId] = useState<string | null>(null);
-  const [questions, setQuestions] = useState<Pick<Question, "id" | "question" | "options" | "difficulty" | "tags">[]>([]);
+  const [questions, setQuestions] = useState<
+    Pick<Question, "id" | "question" | "options" | "difficulty" | "tags">[]
+  >([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
   const [answeredCount, setAnsweredCount] = useState(0);
@@ -35,20 +48,34 @@ export function QuickPracticePage() {
   const [questionCount, setQuestionCount] = useState(10);
   const [timeLimitMinutes, setTimeLimitMinutes] = useState(0);
 
-  // Timer
+  // Timers
   const [timeRemaining, setTimeRemaining] = useState(0);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const startedAtRef = useRef<number | null>(null);
   const sessionIdRef = useRef<string | null>(null);
   const isCompletingRef = useRef(false);
 
   // Results
-  const { data: sessionDetail } = useSessionDetail(phase === "results" ? sessionId : null);
+  const { data: sessionDetail } = useSessionDetail(
+    phase === "results" ? sessionId : null,
+  );
 
   const currentQuestion = questions[currentIndex];
-  const activeElapsed = timeLimitMinutes > 0 ? timeLimitMinutes * 60 - timeRemaining : 0;
+  const activeElapsed =
+    timeLimitMinutes > 0 ? timeLimitMinutes * 60 - timeRemaining : 0;
 
-  const persistedState = phase === "active" && sessionId
-    ? { sessionId, questions, currentIndex, answeredCount, timeLimitMinutes, timeRemaining }
-    : null;
+  const persistedState =
+    phase === "active" && sessionId
+      ? {
+          sessionId,
+          questions,
+          currentIndex,
+          answeredCount,
+          timeLimitMinutes,
+          timeRemaining,
+          elapsedSeconds,
+        }
+      : null;
 
   const { loadSaved, clearSaved } = useQuizPersistence(
     "qp-quiz",
@@ -72,21 +99,37 @@ export function QuickPracticePage() {
       setAnsweredCount(saved.answeredCount);
       setTimeLimitMinutes(saved.timeLimitMinutes);
       setTimeRemaining(saved.timeRemaining);
+      setElapsedSeconds(saved.elapsedSeconds ?? 0);
       setPhase("active");
     }
   }, [loadSaved]);
 
-  // Timer countdown
+  // Timer countdown + elapsed time tick
   useEffect(() => {
-    if (phase !== "active" || timeLimitMinutes <= 0) return;
+    if (phase !== "active") return;
+
+    // Record start time if not already set
+    if (!startedAtRef.current) {
+      startedAtRef.current = Date.now() - elapsedSeconds * 1000;
+    }
+
     const interval = setInterval(() => {
-      setTimeRemaining((prev) => {
-        if (prev <= 1) return 0;
-        return prev - 1;
-      });
+      // Elapsed timer (always runs)
+      setElapsedSeconds(() =>
+        Math.floor((Date.now() - (startedAtRef.current ?? Date.now())) / 1000),
+      );
+
+      // Countdown timer (only when time limit is set)
+      if (timeLimitMinutes > 0) {
+        setTimeRemaining((prev) => {
+          if (prev <= 1) return 0;
+          return prev - 1;
+        });
+      }
     }, 1000);
+
     return () => clearInterval(interval);
-  }, [phase, timeLimitMinutes]);
+  }, [phase]);
 
   // Clear saved state when transitioning to results
   useEffect(() => {
@@ -98,8 +141,12 @@ export function QuickPracticePage() {
     if (!sid || isCompletingRef.current) return;
     isCompletingRef.current = true;
     try {
-      await completeSession.mutateAsync({ sessionId: sid, timeTakenSeconds: activeElapsed || undefined });
+      await completeSession.mutateAsync({
+        sessionId: sid,
+        timeTakenSeconds: activeElapsed || undefined,
+      });
       setSessionId(sid);
+      startedAtRef.current = null;
       setPhase("results");
     } finally {
       isCompletingRef.current = false;
@@ -108,7 +155,8 @@ export function QuickPracticePage() {
 
   // Auto-end when timer hits 0
   useEffect(() => {
-    if (phase !== "active" || timeLimitMinutes <= 0 || timeRemaining > 0) return;
+    if (phase !== "active" || timeLimitMinutes <= 0 || timeRemaining > 0)
+      return;
     finishSession();
   }, [timeRemaining, finishSession]);
 
@@ -124,6 +172,8 @@ export function QuickPracticePage() {
       setCurrentIndex(0);
       setAnsweredCount(0);
       setSelectedAnswer(null);
+      setElapsedSeconds(0);
+      startedAtRef.current = Date.now();
       setPhase("active");
       if (timeLimitMinutes > 0) {
         setTimeRemaining(timeLimitMinutes * 60);
@@ -133,13 +183,22 @@ export function QuickPracticePage() {
     }
   }, [startPractice, questionCount, timeLimitMinutes]);
 
-  const handleSelectOption = useCallback((answer: string) => {
-    if (phase !== "active" || submitAnswer.isPending) return;
-    setSelectedAnswer(answer === selectedAnswer ? null : answer);
-  }, [phase, selectedAnswer, submitAnswer.isPending]);
+  const handleSelectOption = useCallback(
+    (answer: string) => {
+      if (phase !== "active" || submitAnswer.isPending) return;
+      setSelectedAnswer(answer === selectedAnswer ? null : answer);
+    },
+    [phase, selectedAnswer, submitAnswer.isPending],
+  );
 
   const handleConfirm = useCallback(async () => {
-    if (!sessionIdRef.current || !currentQuestion || !selectedAnswer || phase !== "active") return;
+    if (
+      !sessionIdRef.current ||
+      !currentQuestion ||
+      !selectedAnswer ||
+      phase !== "active"
+    )
+      return;
     await submitAnswer.mutateAsync({
       sessionId: sessionIdRef.current,
       questionId: currentQuestion.id,
@@ -155,7 +214,15 @@ export function QuickPracticePage() {
       setCurrentIndex((prev) => prev + 1);
       setSelectedAnswer(null);
     }
-  }, [currentQuestion, selectedAnswer, phase, currentIndex, questions.length, submitAnswer, finishSession]);
+  }, [
+    currentQuestion,
+    selectedAnswer,
+    phase,
+    currentIndex,
+    questions.length,
+    submitAnswer,
+    finishSession,
+  ]);
 
   const handleReset = useCallback(() => {
     clearSaved();
@@ -242,7 +309,9 @@ export function QuickPracticePage() {
     return (
       <PageShell maxWidth="narrow">
         <div className="py-8">
-          <h1 className="text-2xl font-semibold tracking-tight">Quick Practice</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">
+            Quick Practice
+          </h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Random questions to keep your knowledge sharp.
           </p>
@@ -259,20 +328,27 @@ export function QuickPracticePage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="qp-time">Time limit (minutes, 0 = no limit)</Label>
+              <Label htmlFor="qp-time">
+                Time limit (minutes, 0 = no limit)
+              </Label>
               <Input
                 id="qp-time"
                 type="number"
                 min={0}
                 max={120}
                 value={timeLimitMinutes}
-                onChange={(e) => setTimeLimitMinutes(Number(e.target.value) || 0)}
+                onChange={(e) =>
+                  setTimeLimitMinutes(Number(e.target.value) || 0)
+                }
               />
             </div>
-            {startError && (
-              <p className="text-sm text-red-500">{startError}</p>
-            )}
-            <Button onClick={handleStart} size="lg" className="mt-4" disabled={startPractice.isPending}>
+            {startError && <p className="text-sm text-red-500">{startError}</p>}
+            <Button
+              onClick={handleStart}
+              size="lg"
+              className="mt-4"
+              disabled={startPractice.isPending}
+            >
               {startPractice.isPending ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : (
@@ -299,12 +375,17 @@ export function QuickPracticePage() {
             Question {currentIndex + 1} of {questions.length}
           </span>
           <div className="flex items-center gap-3">
+            <span className="flex items-center gap-1 text-sm font-mono text-muted-foreground">
+              <Timer className="h-3.5 w-3.5" />
+              {formatTime(elapsedSeconds)}
+            </span>
             {timeLimitMinutes > 0 && (
-              <span className={cn(
-                "flex items-center gap-1 text-sm font-mono",
-                timeRemaining <= 60 && "text-red-500",
-              )}>
-                <Timer className="h-3.5 w-3.5" />
+              <span
+                className={cn(
+                  "flex items-center gap-1 text-sm font-mono",
+                  timeRemaining <= 60 && "text-red-500",
+                )}
+              >
                 {formatTime(timeRemaining)}
               </span>
             )}
@@ -313,7 +394,10 @@ export function QuickPracticePage() {
             </span>
           </div>
         </div>
-        <Progress value={(answeredCount / questions.length) * 100} className="mb-6 h-2" />
+        <Progress
+          value={(answeredCount / questions.length) * 100}
+          className="mb-6 h-2"
+        />
 
         <div className="mb-2 flex gap-2">
           <Badge variant="outline">{currentQuestion.difficulty}</Badge>
@@ -351,7 +435,9 @@ export function QuickPracticePage() {
             onClick={handleConfirm}
             disabled={submitAnswer.isPending}
           >
-            {submitAnswer.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {submitAnswer.isPending && (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            )}
             Confirm &amp; Continue
           </Button>
         )}

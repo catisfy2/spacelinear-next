@@ -3,7 +3,12 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useStore } from "@/store/useStore";
-import { useStartMockTest, useSubmitAnswer, useCompleteSession, useSessionDetail } from "@/hooks/useQuiz";
+import {
+  useStartMockTest,
+  useSubmitAnswer,
+  useCompleteSession,
+  useSessionDetail,
+} from "@/hooks/useQuiz";
 import { PageShell } from "@/components/app/PageShell";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -34,7 +39,9 @@ export function MockTestPage() {
 
   const [phase, setPhase] = useState<Phase>("config");
   const [sessionId, setSessionId] = useState<string | null>(null);
-  const [questions, setQuestions] = useState<Pick<Question, "id" | "question" | "options" | "difficulty" | "tags">[]>([]);
+  const [questions, setQuestions] = useState<
+    Pick<Question, "id" | "question" | "options" | "difficulty" | "tags">[]
+  >([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
   const [answeredCount, setAnsweredCount] = useState(0);
@@ -46,23 +53,37 @@ export function MockTestPage() {
   const [timeLimitMinutes, setTimeLimitMinutes] = useState(30);
   const [selectedDifficulty, setSelectedDifficulty] = useState<string>("mixed");
 
-  // Timer
+  // Timers
   const [timeRemaining, setTimeRemaining] = useState(0);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const startedAtRef = useRef<number | null>(null);
   const timeLimitRef = useRef(0);
   const isCompletingRef = useRef(false);
 
   // Results
-  const { data: sessionDetail } = useSessionDetail(phase === "results" ? sessionId : null);
+  const { data: sessionDetail } = useSessionDetail(
+    phase === "results" ? sessionId : null,
+  );
 
-  const filteredTopics = selectedSubject && selectedSubject !== "all"
-    ? topics.filter((t) => t.subjectId === selectedSubject)
-    : topics;
+  const filteredTopics =
+    selectedSubject && selectedSubject !== "all"
+      ? topics.filter((t) => t.subjectId === selectedSubject)
+      : topics;
 
   const currentQuestion = questions[currentIndex];
 
-  const persistedState = phase === "active" && sessionId
-    ? { sessionId, questions, currentIndex, answeredCount, timeLimitMinutes: timeLimitRef.current, timeRemaining }
-    : null;
+  const persistedState =
+    phase === "active" && sessionId
+      ? {
+          sessionId,
+          questions,
+          currentIndex,
+          answeredCount,
+          timeLimitMinutes: timeLimitRef.current,
+          timeRemaining,
+          elapsedSeconds,
+        }
+      : null;
 
   const { loadSaved, clearSaved } = useQuizPersistence(
     "mt-quiz",
@@ -86,19 +107,35 @@ export function MockTestPage() {
       setAnsweredCount(saved.answeredCount);
       timeLimitRef.current = saved.timeLimitMinutes;
       setTimeRemaining(saved.timeRemaining);
+      setElapsedSeconds(saved.elapsedSeconds ?? 0);
       setPhase("active");
     }
   }, [loadSaved]);
 
-  // Timer countdown
+  // Timer countdown + elapsed time tick
   useEffect(() => {
-    if (phase !== "active" || timeLimitRef.current <= 0) return;
+    if (phase !== "active") return;
+
+    // Record start time if not already set
+    if (!startedAtRef.current) {
+      startedAtRef.current = Date.now() - elapsedSeconds * 1000;
+    }
+
     const interval = setInterval(() => {
-      setTimeRemaining((prev) => {
-        if (prev <= 1) return 0;
-        return prev - 1;
-      });
+      // Elapsed timer (always runs)
+      setElapsedSeconds(() =>
+        Math.floor((Date.now() - (startedAtRef.current ?? Date.now())) / 1000),
+      );
+
+      // Countdown timer (only when time limit is set)
+      if (timeLimitRef.current > 0) {
+        setTimeRemaining((prev) => {
+          if (prev <= 1) return 0;
+          return prev - 1;
+        });
+      }
     }, 1000);
+
     return () => clearInterval(interval);
   }, [phase]);
 
@@ -111,8 +148,15 @@ export function MockTestPage() {
     if (!sessionId || isCompletingRef.current) return;
     isCompletingRef.current = true;
     try {
-      const totalTime = timeLimitRef.current > 0 ? timeLimitRef.current * 60 - timeRemaining : undefined;
-      await completeSession.mutateAsync({ sessionId, timeTakenSeconds: totalTime });
+      const totalTime =
+        timeLimitRef.current > 0
+          ? timeLimitRef.current * 60 - timeRemaining
+          : undefined;
+      await completeSession.mutateAsync({
+        sessionId,
+        timeTakenSeconds: totalTime,
+      });
+      startedAtRef.current = null;
       setPhase("results");
     } finally {
       isCompletingRef.current = false;
@@ -121,7 +165,8 @@ export function MockTestPage() {
 
   // Auto-end when timer hits 0
   useEffect(() => {
-    if (phase !== "active" || timeLimitRef.current <= 0 || timeRemaining > 0) return;
+    if (phase !== "active" || timeLimitRef.current <= 0 || timeRemaining > 0)
+      return;
     finishSession();
   }, [timeRemaining, finishSession]);
 
@@ -131,8 +176,12 @@ export function MockTestPage() {
     setStartError(null);
     try {
       const result = await startTest.mutateAsync({
-        subjectId: selectedSubject && selectedSubject !== "all" ? selectedSubject : undefined,
-        topicId: selectedTopic && selectedTopic !== "all" ? selectedTopic : undefined,
+        subjectId:
+          selectedSubject && selectedSubject !== "all"
+            ? selectedSubject
+            : undefined,
+        topicId:
+          selectedTopic && selectedTopic !== "all" ? selectedTopic : undefined,
         count: questionCount,
         timeLimitMinutes,
         difficulty: selectedDifficulty,
@@ -142,21 +191,36 @@ export function MockTestPage() {
       setCurrentIndex(0);
       setAnsweredCount(0);
       setSelectedAnswer(null);
+      setElapsedSeconds(0);
+      startedAtRef.current = Date.now();
       timeLimitRef.current = result.timeLimitMinutes;
       setTimeRemaining(result.timeLimitMinutes * 60);
       setPhase("active");
     } catch (err: any) {
-      setStartError(err.message ?? "No questions available for the selected criteria.");
+      setStartError(
+        err.message ?? "No questions available for the selected criteria.",
+      );
     }
-  }, [selectedSubject, selectedTopic, questionCount, timeLimitMinutes, selectedDifficulty, startTest]);
+  }, [
+    selectedSubject,
+    selectedTopic,
+    questionCount,
+    timeLimitMinutes,
+    selectedDifficulty,
+    startTest,
+  ]);
 
-  const handleSelectOption = useCallback((answer: string) => {
-    if (phase !== "active" || submitAnswer.isPending) return;
-    setSelectedAnswer(answer);
-  }, [phase, submitAnswer.isPending]);
+  const handleSelectOption = useCallback(
+    (answer: string) => {
+      if (phase !== "active" || submitAnswer.isPending) return;
+      setSelectedAnswer(answer);
+    },
+    [phase, submitAnswer.isPending],
+  );
 
   const handleConfirm = useCallback(async () => {
-    if (!sessionId || !currentQuestion || !selectedAnswer || phase !== "active") return;
+    if (!sessionId || !currentQuestion || !selectedAnswer || phase !== "active")
+      return;
     await submitAnswer.mutateAsync({
       sessionId,
       questionId: currentQuestion.id,
@@ -172,7 +236,16 @@ export function MockTestPage() {
       setCurrentIndex((prev) => prev + 1);
       setSelectedAnswer(null);
     }
-  }, [sessionId, currentQuestion, selectedAnswer, phase, currentIndex, questions.length, submitAnswer, finishSession]);
+  }, [
+    sessionId,
+    currentQuestion,
+    selectedAnswer,
+    phase,
+    currentIndex,
+    questions.length,
+    submitAnswer,
+    finishSession,
+  ]);
 
   // ─── Render ─────────────────────────────────────────────────────────
 
@@ -249,14 +322,22 @@ export function MockTestPage() {
           <Card className="mt-6 p-6 space-y-6">
             <div className="space-y-2">
               <Label>Subject</Label>
-              <Select value={selectedSubject} onValueChange={(val) => { setSelectedSubject(val); setSelectedTopic("all"); }}>
+              <Select
+                value={selectedSubject}
+                onValueChange={(val) => {
+                  setSelectedSubject(val);
+                  setSelectedTopic("all");
+                }}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="All subjects" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All subjects</SelectItem>
                   {subjects.map((s) => (
-                    <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                    <SelectItem key={s.id} value={s.id}>
+                      {s.name}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -271,7 +352,9 @@ export function MockTestPage() {
                 <SelectContent>
                   <SelectItem value="all">All topics</SelectItem>
                   {filteredTopics.map((t) => (
-                    <SelectItem key={t.id} value={t.id}>{t.title}</SelectItem>
+                    <SelectItem key={t.id} value={t.id}>
+                      {t.title}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -279,7 +362,10 @@ export function MockTestPage() {
 
             <div className="space-y-2">
               <Label>Difficulty</Label>
-              <Select value={selectedDifficulty} onValueChange={setSelectedDifficulty}>
+              <Select
+                value={selectedDifficulty}
+                onValueChange={setSelectedDifficulty}
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -300,7 +386,9 @@ export function MockTestPage() {
                   min={5}
                   max={50}
                   value={questionCount}
-                  onChange={(e) => setQuestionCount(parseInt(e.target.value) || 10)}
+                  onChange={(e) =>
+                    setQuestionCount(parseInt(e.target.value) || 10)
+                  }
                 />
               </div>
               <div className="space-y-2">
@@ -310,21 +398,23 @@ export function MockTestPage() {
                   min={5}
                   max={180}
                   value={timeLimitMinutes}
-                  onChange={(e) => setTimeLimitMinutes(parseInt(e.target.value) || 30)}
+                  onChange={(e) =>
+                    setTimeLimitMinutes(parseInt(e.target.value) || 30)
+                  }
                 />
               </div>
             </div>
 
-            {startError && (
-              <p className="text-sm text-red-500">{startError}</p>
-            )}
+            {startError && <p className="text-sm text-red-500">{startError}</p>}
             <Button
               onClick={handleStart}
               disabled={startTest.isPending}
               className="w-full"
               size="lg"
             >
-              {startTest.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {startTest.isPending && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
               Start Mock Test
             </Button>
           </Card>
@@ -346,12 +436,17 @@ export function MockTestPage() {
             Question {currentIndex + 1} of {questions.length}
           </span>
           <div className="flex items-center gap-3">
+            <span className="flex items-center gap-1 text-sm font-mono text-muted-foreground">
+              <Timer className="h-3.5 w-3.5" />
+              {formatTime(elapsedSeconds)}
+            </span>
             {timeLimitRef.current > 0 && (
-              <span className={cn(
-                "flex items-center gap-1 text-sm font-mono",
-                timeRemaining <= 60 && "text-red-500",
-              )}>
-                <Timer className="h-3.5 w-3.5" />
+              <span
+                className={cn(
+                  "flex items-center gap-1 text-sm font-mono",
+                  timeRemaining <= 60 && "text-red-500",
+                )}
+              >
                 {formatTime(timeRemaining)}
               </span>
             )}
@@ -360,12 +455,17 @@ export function MockTestPage() {
             </span>
           </div>
         </div>
-        <Progress value={(answeredCount / questions.length) * 100} className="mb-6 h-2" />
+        <Progress
+          value={(answeredCount / questions.length) * 100}
+          className="mb-6 h-2"
+        />
 
         <div className="mb-2 flex gap-2">
           <Badge variant="outline">{currentQuestion.difficulty}</Badge>
           {currentQuestion.tags?.map((tag) => (
-            <Badge key={tag} variant="secondary" className="text-xs">{tag}</Badge>
+            <Badge key={tag} variant="secondary" className="text-xs">
+              {tag}
+            </Badge>
           ))}
         </div>
 
@@ -396,7 +496,9 @@ export function MockTestPage() {
             onClick={handleConfirm}
             disabled={submitAnswer.isPending}
           >
-            {submitAnswer.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {submitAnswer.isPending && (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            )}
             Confirm &amp; Continue
           </Button>
         )}

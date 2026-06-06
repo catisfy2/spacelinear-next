@@ -23,6 +23,7 @@ import {
   IconChat,
   IconToday,
   IconTopics,
+  IconSubjects,
   IconSchedule,
   IconPerformance,
   IconQuiz,
@@ -45,6 +46,7 @@ export function Sidebar({ onOpenCreateTopic }: SidebarProps) {
   const navItems = [
     { href: "/chat", label: "Chat", icon: IconChat },
     { href: "/today", label: "Today", icon: IconToday, exact: true },
+    { href: "/subjects", label: "Subjects", icon: IconSubjects },
     { href: "/topics", label: "Topics", icon: IconTopics },
     { href: "/schedule", label: "Schedule", icon: IconSchedule },
     { href: "/quiz", label: "Quiz", icon: IconQuiz, exact: true },

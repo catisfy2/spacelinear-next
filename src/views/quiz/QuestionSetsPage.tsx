@@ -1,13 +1,26 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useQuestionSets, useStartTopicSet, useSubmitAnswer, useCompleteSession, useSessionDetail, useUpdateQuestionSet } from "@/hooks/useQuiz";
+import {
+  useQuestionSets,
+  useStartTopicSet,
+  useSubmitAnswer,
+  useCompleteSession,
+  useSessionDetail,
+  useUpdateQuestionSet,
+} from "@/hooks/useQuiz";
 import { useStore } from "@/store/useStore";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { PageShell } from "@/components/app/PageShell";
 import { Button } from "@/components/ui/button";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
+import {
+  Card,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardContent,
+} from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/app/EmptyState";
@@ -28,7 +41,14 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useQuizPersistence } from "@/hooks/useQuizPersistence";
-import { Loader2, CheckCircle2, XCircle, Play, Pencil, Timer } from "lucide-react";
+import {
+  Loader2,
+  CheckCircle2,
+  XCircle,
+  Play,
+  Pencil,
+  Timer,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatTime } from "@/types/quiz";
 import type { Question } from "@/types/quiz";
@@ -52,13 +72,17 @@ export function QuestionSetsPage() {
 
   const [phase, setPhase] = useState<Phase>("list");
   const [sessionId, setSessionId] = useState<string | null>(null);
-  const [questions, setQuestions] = useState<Pick<Question, "id" | "question" | "options" | "difficulty" | "tags">[]>([]);
+  const [questions, setQuestions] = useState<
+    Pick<Question, "id" | "question" | "options" | "difficulty" | "tags">[]
+  >([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
   const [answeredCount, setAnsweredCount] = useState(0);
 
   // Edit dialog state
-  const [editTarget, setEditTarget] = useState<QuestionSetListItem | null>(null);
+  const [editTarget, setEditTarget] = useState<QuestionSetListItem | null>(
+    null,
+  );
   const [editTitle, setEditTitle] = useState("");
   const [editTopicId, setEditTopicId] = useState<string>("");
   const [editMaterialId, setEditMaterialId] = useState<string>("none");
@@ -68,19 +92,32 @@ export function QuestionSetsPage() {
   const [startingSetId, setStartingSetId] = useState<string | null>(null);
   const [startTimeLimit, setStartTimeLimit] = useState(0);
 
-  // Timer
+  // Timers
   const [timeRemaining, setTimeRemaining] = useState(0);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const startedAtRef = useRef<number | null>(null);
   const timeLimitMinutesRef = useRef(0);
   const isCompletingRef = useRef(false);
 
   // Results
-  const { data: sessionDetail } = useSessionDetail(phase === "results" ? sessionId : null);
+  const { data: sessionDetail } = useSessionDetail(
+    phase === "results" ? sessionId : null,
+  );
 
   const currentQuestion = questions[currentIndex];
 
-  const persistedState = phase === "active" && sessionId
-    ? { sessionId, questions, currentIndex, answeredCount, timeLimitMinutes: timeLimitMinutesRef.current, timeRemaining }
-    : null;
+  const persistedState =
+    phase === "active" && sessionId
+      ? {
+          sessionId,
+          questions,
+          currentIndex,
+          answeredCount,
+          timeLimitMinutes: timeLimitMinutesRef.current,
+          timeRemaining,
+          elapsedSeconds,
+        }
+      : null;
 
   const { loadSaved, clearSaved } = useQuizPersistence(
     "qs-quiz",
@@ -104,19 +141,35 @@ export function QuestionSetsPage() {
       setAnsweredCount(saved.answeredCount);
       timeLimitMinutesRef.current = saved.timeLimitMinutes;
       setTimeRemaining(saved.timeRemaining);
+      setElapsedSeconds(saved.elapsedSeconds ?? 0);
       setPhase("active");
     }
   }, [loadSaved]);
 
-  // Timer countdown
+  // Timer countdown + elapsed time tick
   useEffect(() => {
-    if (phase !== "active" || timeLimitMinutesRef.current <= 0) return;
+    if (phase !== "active") return;
+
+    // Record start time if not already set
+    if (!startedAtRef.current) {
+      startedAtRef.current = Date.now() - elapsedSeconds * 1000;
+    }
+
     const interval = setInterval(() => {
-      setTimeRemaining((prev) => {
-        if (prev <= 1) return 0;
-        return prev - 1;
-      });
+      // Elapsed timer (always runs)
+      setElapsedSeconds(() =>
+        Math.floor((Date.now() - (startedAtRef.current ?? Date.now())) / 1000),
+      );
+
+      // Countdown timer (only when time limit is set)
+      if (timeLimitMinutesRef.current > 0) {
+        setTimeRemaining((prev) => {
+          if (prev <= 1) return 0;
+          return prev - 1;
+        });
+      }
     }, 1000);
+
     return () => clearInterval(interval);
   }, [phase]);
 
@@ -131,8 +184,12 @@ export function QuestionSetsPage() {
     try {
       await completeSession.mutateAsync({
         sessionId,
-        timeTakenSeconds: timeLimitMinutesRef.current > 0 ? timeLimitMinutesRef.current * 60 - timeRemaining : undefined,
+        timeTakenSeconds:
+          timeLimitMinutesRef.current > 0
+            ? timeLimitMinutesRef.current * 60 - timeRemaining
+            : undefined,
       });
+      startedAtRef.current = null;
       setPhase("results");
     } finally {
       isCompletingRef.current = false;
@@ -141,7 +198,12 @@ export function QuestionSetsPage() {
 
   // Auto-end when timer hits 0
   useEffect(() => {
-    if (phase !== "active" || timeLimitMinutesRef.current <= 0 || timeRemaining > 0) return;
+    if (
+      phase !== "active" ||
+      timeLimitMinutesRef.current <= 0 ||
+      timeRemaining > 0
+    )
+      return;
     finishSession();
   }, [timeRemaining, finishSession]);
 
@@ -153,6 +215,8 @@ export function QuestionSetsPage() {
     setCurrentIndex(0);
     setAnsweredCount(0);
     setSelectedAnswer(null);
+    setElapsedSeconds(0);
+    startedAtRef.current = Date.now();
     setStartingSetId(null);
     setPhase("active");
     timeLimitMinutesRef.current = startTimeLimit;
@@ -161,13 +225,17 @@ export function QuestionSetsPage() {
     }
   }, [startingSetId, startTimeLimit, startSet]);
 
-  const handleSelectOption = useCallback((answer: string) => {
-    if (phase !== "active" || submitAnswer.isPending) return;
-    setSelectedAnswer(answer);
-  }, [phase, submitAnswer.isPending]);
+  const handleSelectOption = useCallback(
+    (answer: string) => {
+      if (phase !== "active" || submitAnswer.isPending) return;
+      setSelectedAnswer(answer);
+    },
+    [phase, submitAnswer.isPending],
+  );
 
   const handleConfirm = useCallback(async () => {
-    if (!sessionId || !currentQuestion || !selectedAnswer || phase !== "active") return;
+    if (!sessionId || !currentQuestion || !selectedAnswer || phase !== "active")
+      return;
     await submitAnswer.mutateAsync({
       sessionId,
       questionId: currentQuestion.id,
@@ -183,7 +251,16 @@ export function QuestionSetsPage() {
       setCurrentIndex((prev) => prev + 1);
       setSelectedAnswer(null);
     }
-  }, [sessionId, currentQuestion, selectedAnswer, phase, currentIndex, questions.length, submitAnswer, finishSession]);
+  }, [
+    sessionId,
+    currentQuestion,
+    selectedAnswer,
+    phase,
+    currentIndex,
+    questions.length,
+    submitAnswer,
+    finishSession,
+  ]);
 
   const handleReset = useCallback(() => {
     clearSaved();
@@ -203,22 +280,27 @@ export function QuestionSetsPage() {
     }
   }, [editTarget]);
 
-  const openEdit = useCallback(async (set: QuestionSetListItem) => {
-    setEditTarget(set);
-    setEditTitle(set.title);
-    setEditTopicId(set.topicId);
-    setEditMaterialId(set.materialId ?? "none");
-    if (user) {
-      const { data } = await supabase
-        .from("materials")
-        .select("id, name")
-        .eq("user_id", user.id)
-        .is("deleted_at", null)
-        .neq("type", "folder")
-        .order("name");
-      setMaterials((data ?? []).map((m: any) => ({ id: m.id, name: m.name })));
-    }
-  }, [user]);
+  const openEdit = useCallback(
+    async (set: QuestionSetListItem) => {
+      setEditTarget(set);
+      setEditTitle(set.title);
+      setEditTopicId(set.topicId);
+      setEditMaterialId(set.materialId ?? "none");
+      if (user) {
+        const { data } = await supabase
+          .from("materials")
+          .select("id, name")
+          .eq("user_id", user.id)
+          .is("deleted_at", null)
+          .neq("type", "folder")
+          .order("name");
+        setMaterials(
+          (data ?? []).map((m: any) => ({ id: m.id, name: m.name })),
+        );
+      }
+    },
+    [user],
+  );
 
   const handleSaveEdit = useCallback(async () => {
     if (!editTarget) return;
@@ -324,7 +406,9 @@ export function QuestionSetsPage() {
     return (
       <PageShell>
         <div className="py-8">
-          <h1 className="text-2xl font-semibold tracking-tight">Topic Question Sets</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">
+            Topic Question Sets
+          </h1>
           <p className="mt-1 text-sm text-muted-foreground">
             AI-generated question sets tied to your study topics.
           </p>
@@ -333,7 +417,9 @@ export function QuestionSetsPage() {
               <Card key={set.id}>
                 <CardHeader className="pb-2">
                   <div className="flex items-start justify-between gap-2">
-                    <CardTitle className="text-base leading-tight">{set.title}</CardTitle>
+                    <CardTitle className="text-base leading-tight">
+                      {set.title}
+                    </CardTitle>
                     <Button
                       variant="ghost"
                       size="icon"
@@ -351,7 +437,10 @@ export function QuestionSetsPage() {
                 </CardHeader>
                 <CardContent>
                   <Button
-                    onClick={() => { setStartingSetId(set.id); setStartTimeLimit(0); }}
+                    onClick={() => {
+                      setStartingSetId(set.id);
+                      setStartTimeLimit(0);
+                    }}
                     disabled={startSet.isPending}
                     size="sm"
                   >
@@ -369,24 +458,32 @@ export function QuestionSetsPage() {
         </div>
 
         {/* Start-config dialog */}
-        <Dialog open={!!startingSetId} onOpenChange={(o) => !o && setStartingSetId(null)}>
+        <Dialog
+          open={!!startingSetId}
+          onOpenChange={(o) => !o && setStartingSetId(null)}
+        >
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Start Question Set</DialogTitle>
             </DialogHeader>
             <div className="space-y-4 py-2">
               <p className="text-sm text-muted-foreground">
-                {sets?.find((s) => s.id === startingSetId)?.questionCount ?? 0} questions
+                {sets?.find((s) => s.id === startingSetId)?.questionCount ?? 0}{" "}
+                questions
               </p>
               <div className="space-y-2">
-                <Label htmlFor="qs-time">Time limit (minutes, 0 = no limit)</Label>
+                <Label htmlFor="qs-time">
+                  Time limit (minutes, 0 = no limit)
+                </Label>
                 <Input
                   id="qs-time"
                   type="number"
                   min={0}
                   max={120}
                   value={startTimeLimit}
-                  onChange={(e) => setStartTimeLimit(Number(e.target.value) || 0)}
+                  onChange={(e) =>
+                    setStartTimeLimit(Number(e.target.value) || 0)
+                  }
                 />
               </div>
             </div>
@@ -395,7 +492,9 @@ export function QuestionSetsPage() {
                 Cancel
               </Button>
               <Button onClick={handleStartSet} disabled={startSet.isPending}>
-                {startSet.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {startSet.isPending && (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                )}
                 Begin
               </Button>
             </DialogFooter>
@@ -403,7 +502,10 @@ export function QuestionSetsPage() {
         </Dialog>
 
         {/* Edit dialog */}
-        <Dialog open={!!editTarget} onOpenChange={(o) => !o && setEditTarget(null)}>
+        <Dialog
+          open={!!editTarget}
+          onOpenChange={(o) => !o && setEditTarget(null)}
+        >
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Edit Question Set</DialogTitle>
@@ -435,7 +537,10 @@ export function QuestionSetsPage() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="material">Material</Label>
-                <Select value={editMaterialId} onValueChange={setEditMaterialId}>
+                <Select
+                  value={editMaterialId}
+                  onValueChange={setEditMaterialId}
+                >
                   <SelectTrigger id="material">
                     <SelectValue placeholder="No material" />
                   </SelectTrigger>
@@ -455,7 +560,9 @@ export function QuestionSetsPage() {
                 Cancel
               </Button>
               <Button onClick={handleSaveEdit} disabled={updateSet.isPending}>
-                {updateSet.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {updateSet.isPending && (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                )}
                 Save
               </Button>
             </DialogFooter>
@@ -480,12 +587,17 @@ export function QuestionSetsPage() {
             Question {currentIndex + 1} of {questions.length}
           </span>
           <div className="flex items-center gap-3">
+            <span className="flex items-center gap-1 text-sm font-mono text-muted-foreground">
+              <Timer className="h-3.5 w-3.5" />
+              {formatTime(elapsedSeconds)}
+            </span>
             {timeLimitMinutesRef.current > 0 && (
-              <span className={cn(
-                "flex items-center gap-1 text-sm font-mono",
-                timeRemaining <= 60 && "text-red-500",
-              )}>
-                <Timer className="h-3.5 w-3.5" />
+              <span
+                className={cn(
+                  "flex items-center gap-1 text-sm font-mono",
+                  timeRemaining <= 60 && "text-red-500",
+                )}
+              >
                 {formatTime(timeRemaining)}
               </span>
             )}
@@ -494,7 +606,10 @@ export function QuestionSetsPage() {
             </span>
           </div>
         </div>
-        <Progress value={(answeredCount / questions.length) * 100} className="mb-6 h-2" />
+        <Progress
+          value={(answeredCount / questions.length) * 100}
+          className="mb-6 h-2"
+        />
 
         <div className="mb-2 flex gap-2">
           <Badge variant="outline">{currentQuestion.difficulty}</Badge>
@@ -532,7 +647,9 @@ export function QuestionSetsPage() {
             onClick={handleConfirm}
             disabled={submitAnswer.isPending}
           >
-            {submitAnswer.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {submitAnswer.isPending && (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            )}
             Confirm &amp; Continue
           </Button>
         )}

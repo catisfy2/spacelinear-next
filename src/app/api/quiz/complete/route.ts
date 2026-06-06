@@ -22,7 +22,10 @@ export async function POST(req: NextRequest) {
   }
 
   const authClient = getAuthClient(accessToken);
-  const { data: { user }, error: authError } = await authClient.auth.getUser();
+  const {
+    data: { user },
+    error: authError,
+  } = await authClient.auth.getUser();
   if (authError || !user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -30,7 +33,7 @@ export async function POST(req: NextRequest) {
   // Verify session belongs to user
   const { data: session } = await authClient
     .from("quiz_sessions")
-    .select("id, completed_at")
+    .select("id, completed_at, total_questions, score")
     .eq("id", sessionId)
     .eq("user_id", user.id)
     .single();
@@ -40,17 +43,22 @@ export async function POST(req: NextRequest) {
   }
 
   if (session.completed_at) {
-    return NextResponse.json({ error: "Session already completed" }, { status: 400 });
+    // Already completed — return the session as-is (idempotent)
+    return NextResponse.json({ session });
   }
 
-  // Get current score and total
+  // Get current score and total from answers
   const { data: answers } = await authClient
     .from("quiz_session_answers")
     .select("is_correct")
     .eq("session_id", sessionId);
 
   const score = (answers ?? []).filter((a) => a.is_correct).length;
-  const totalQuestions = (answers ?? []).length;
+  const answeredCount = (answers ?? []).length;
+
+  // Preserve the session's original total_questions count if it's larger
+  // (ensures we don't shrink total_questions if some questions were skipped)
+  const totalQuestions = Math.max(session.total_questions ?? 0, answeredCount);
 
   // Complete the session
   const { data: updated, error: updateError } = await authClient
@@ -66,7 +74,11 @@ export async function POST(req: NextRequest) {
     .single();
 
   if (updateError) {
-    return NextResponse.json({ error: "Failed to complete session" }, { status: 500 });
+    console.error("Failed to complete session:", updateError);
+    return NextResponse.json(
+      { error: "Failed to complete session" },
+      { status: 500 },
+    );
   }
 
   return NextResponse.json({ session: updated });
