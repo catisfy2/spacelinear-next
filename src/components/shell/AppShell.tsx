@@ -7,7 +7,7 @@ import { Sidebar } from "./Sidebar";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { CreateTopicModal } from "@/components/topics/CreateTopicModal";
+import { CreateWindow } from "@/components/topics/CreateWindow";
 import {
   SidebarProvider,
   SidebarInset,
@@ -91,7 +91,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </SidebarInset>
       </div>
       {showCreateTopic && (
-        <CreateTopicModal onClose={() => setShowCreateTopic(false)} />
+        <CreateWindow onClose={() => setShowCreateTopic(false)} />
       )}
     </SidebarProvider>
   );
