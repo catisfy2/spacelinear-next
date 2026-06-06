@@ -45,7 +45,6 @@ export function AiPromptInput({
   }, []);
 
   const {
-    isSupported,
     isListening,
     isProcessing,
     transcript,
@@ -92,27 +91,25 @@ export function AiPromptInput({
         rows={1}
         className="min-h-[24px] flex-1 resize-none bg-transparent text-[16px] font-medium text-foreground opacity-[0.73] outline-none placeholder:text-foreground/70"
       />
-      {isSupported && (
-        <button
-          type="button"
-          onClick={handleVoiceToggle}
-          className={cn(
-            "size-[36px] shrink-0 rounded-full transition-colors",
-            isListening
-              ? "bg-destructive text-destructive-foreground shadow-[0_0_12px_hsl(var(--destructive)/0.5)]"
-              : "text-muted-foreground hover:text-foreground",
-            isProcessing && !isListening && "animate-pulse",
-          )}
-          aria-label={isListening ? "Stop recording" : "Start voice input"}
-          title={isListening ? "Stop recording" : "Start voice input"}
-        >
-          {isListening ? (
-            <MicOff className="mx-auto size-[18px]" />
-          ) : (
-            <Mic className="mx-auto size-[18px]" />
-          )}
-        </button>
-      )}
+      <button
+        type="button"
+        onClick={handleVoiceToggle}
+        className={cn(
+          "size-[36px] shrink-0 rounded-full transition-colors",
+          isListening
+            ? "bg-destructive text-destructive-foreground shadow-[0_0_12px_hsl(var(--destructive)/0.5)]"
+            : "text-muted-foreground hover:text-foreground",
+          isProcessing && !isListening && "animate-pulse",
+        )}
+        aria-label={isListening ? "Stop recording" : "Start voice input"}
+        title={isListening ? "Stop recording" : "Start voice input"}
+      >
+        {isListening ? (
+          <MicOff className="mx-auto size-[18px]" />
+        ) : (
+          <Mic className="mx-auto size-[18px]" />
+        )}
+      </button>
       <button
         type="button"
         onClick={handleSend}

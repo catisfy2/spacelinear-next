@@ -40,8 +40,9 @@ interface SpeechToTextActions {
 type SpeechToTextResult = SpeechToTextState & SpeechToTextActions;
 
 /**
- * A hook that wraps the Web Speech API (SpeechRecognition) for speech-to-text.
- * Falls back gracefully when the API is unavailable.
+ * A hook that wraps speech-to-text with two backends:
+ *  1. Web Speech API (`SpeechRecognition`) — primary, instant, local (Chrome, Edge, Safari)
+ *  2. Groq Whisper API via MediaRecorder — fallback for Firefox/other browsers
  */
 export function useSpeechToText(
   options: SpeechToTextOptions = {},
@@ -54,17 +55,27 @@ export function useSpeechToText(
   const [transcript, setTranscript] = useState("");
   const [finalTranscript, setFinalTranscript] = useState("");
 
+  // ── Web Speech API refs ──────────────────────────────────────────────
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const finalRef = useRef("");
 
-  // Detect browser support
-  const isSupported =
+  // ── MediaRecorder (fallback) refs ────────────────────────────────────
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const streamRef = useRef<MediaStream | null>(null);
+  const isTranscribingRef = useRef(false);
+
+  // Detect browser support for Web Speech API
+  const isWebSpeechSupported =
     typeof window !== "undefined" &&
     ("SpeechRecognition" in window || "webkitSpeechRecognition" in window);
 
-  // Initialize recognition instance
+  const isSupported = isWebSpeechSupported;
+
+  // ── Web Speech API ───────────────────────────────────────────────────
+
   const initRecognition = useCallback(() => {
-    if (!isSupported) return null;
+    if (!isWebSpeechSupported) return null;
 
     const SpeechRecognition =
       window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -76,20 +87,17 @@ export function useSpeechToText(
     recognition.maxAlternatives = 1;
 
     return recognition;
-  }, [isSupported, lang, interimResults, continuous]);
+  }, [isWebSpeechSupported, lang, interimResults, continuous]);
 
-  const startListening = useCallback(() => {
+  const speechStart = useCallback(() => {
     setError(null);
 
-    if (!isSupported) {
+    if (!isWebSpeechSupported) {
       setError("Speech recognition is not supported in this browser.");
       return;
     }
 
-    // Don't start if already listening
-    if (recognitionRef.current) {
-      return;
-    }
+    if (recognitionRef.current) return;
 
     const recognition = initRecognition();
     if (!recognition) return;
@@ -123,17 +131,16 @@ export function useSpeechToText(
     };
 
     recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
-      console.error("Speech recognition error:", event.error);
-
       switch (event.error) {
         case "not-allowed":
-          setError("Microphone access denied. Please allow microphone permissions.");
+          setError(
+            "Microphone access denied. Please allow microphone permissions.",
+          );
           break;
         case "no-speech":
           setError("No speech detected. Please try again.");
           break;
         case "aborted":
-          // User aborted — not an error
           break;
         case "audio-capture":
           setError("No microphone found. Please connect a microphone.");
@@ -166,9 +173,9 @@ export function useSpeechToText(
       console.error("Failed to start speech recognition:", err);
       setError("Failed to start speech recognition.");
     }
-  }, [isSupported, initRecognition]);
+  }, [isWebSpeechSupported, initRecognition]);
 
-  const stopListening = useCallback(() => {
+  const speechStop = useCallback(() => {
     if (recognitionRef.current) {
       try {
         recognitionRef.current.stop();
@@ -180,6 +187,145 @@ export function useSpeechToText(
     setIsListening(false);
     setIsProcessing(false);
   }, []);
+
+  // ── MediaRecorder + Groq Whisper API fallback ────────────────────────
+
+  /** Send accumulated audio chunks to the transcription API. */
+  const transcribeChunk = useCallback(async () => {
+    if (isTranscribingRef.current) return;
+    if (audioChunksRef.current.length === 0) return;
+
+    isTranscribingRef.current = true;
+    setIsProcessing(true);
+
+    const chunks = audioChunksRef.current.splice(0);
+    const mimeType = mediaRecorderRef.current?.mimeType ?? "audio/webm";
+    const audioBlob = new Blob(chunks, { type: mimeType });
+
+    try {
+      const formData = new FormData();
+      formData.append("audio", audioBlob, "recording.webm");
+
+      const res = await fetch("/api/speech-to-text", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!res.ok) {
+        const msg = await res
+          .json()
+          .catch(() => ({ error: "Transcription failed" }));
+        setError(msg.error || "Transcription failed");
+        return;
+      }
+
+      const data = await res.json();
+      const text = (data.text || "").trim();
+
+      if (text) {
+        finalRef.current += (finalRef.current ? " " : "") + text;
+        setFinalTranscript(finalRef.current);
+        setTranscript(finalRef.current);
+        setError(null);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Transcription failed");
+    } finally {
+      isTranscribingRef.current = false;
+      setIsProcessing(false);
+    }
+  }, []);
+
+  const whisperStart = useCallback(async () => {
+    setError(null);
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
+
+      audioChunksRef.current = [];
+      const mimeType = MediaRecorder.isTypeSupported("audio/webm")
+        ? "audio/webm"
+        : "audio/mp4";
+
+      const mediaRecorder = new MediaRecorder(stream, { mimeType });
+      mediaRecorderRef.current = mediaRecorder;
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+          // Transcribe the accumulated chunk immediately
+          transcribeChunk();
+        }
+      };
+
+      // Send chunks every 4 seconds for near-real-time results
+      mediaRecorder.start(4000);
+
+      mediaRecorder.onstop = async () => {
+        // Transcribe any remaining audio
+        await transcribeChunk();
+
+        // Cleanup
+        stream.getTracks().forEach((t) => t.stop());
+        streamRef.current = null;
+        mediaRecorderRef.current = null;
+        setIsListening(false);
+        setIsProcessing(false);
+      };
+
+      setIsListening(true);
+    } catch (err) {
+      console.error("Failed to start recording:", err);
+      if ((err as DOMException).name === "NotAllowedError") {
+        setError(
+          "Microphone access denied. Please allow microphone permissions.",
+        );
+      } else {
+        setError("Failed to access microphone.");
+      }
+      setIsListening(false);
+    }
+  }, [transcribeChunk]);
+
+  const whisperStop = useCallback(() => {
+    if (
+      mediaRecorderRef.current &&
+      mediaRecorderRef.current.state === "recording"
+    ) {
+      mediaRecorderRef.current.stop();
+    } else {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((t) => t.stop());
+        streamRef.current = null;
+      }
+      setIsListening(false);
+      setIsProcessing(false);
+    }
+  }, []);
+
+  // ── Unified controls ─────────────────────────────────────────────────
+
+  const startListening = useCallback(() => {
+    setError(null);
+    setTranscript("");
+    setFinalTranscript("");
+    finalRef.current = "";
+
+    if (isWebSpeechSupported) {
+      speechStart();
+    } else {
+      whisperStart();
+    }
+  }, [isWebSpeechSupported, speechStart, whisperStart]);
+
+  const stopListening = useCallback(() => {
+    if (isWebSpeechSupported) {
+      speechStop();
+    } else {
+      whisperStop();
+    }
+  }, [isWebSpeechSupported, speechStop, whisperStop]);
 
   const toggleListening = useCallback(() => {
     if (isListening) {
@@ -205,6 +351,20 @@ export function useSpeechToText(
           // ignore
         }
         recognitionRef.current = null;
+      }
+
+      if (
+        mediaRecorderRef.current &&
+        mediaRecorderRef.current.state === "recording"
+      ) {
+        try {
+          mediaRecorderRef.current.stop();
+        } catch {
+          // ignore
+        }
+      }
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((t) => t.stop());
       }
     };
   }, []);

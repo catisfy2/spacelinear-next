@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
-import { MessageCircle, X, Send, Bot, User } from "lucide-react";
+import { MessageCircle, X, Send, Mic, MicOff, Bot, User } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useSpeechToText } from "@/hooks/useSpeechToText";
 
 interface ChatMessage {
   role: "user" | "assistant";
@@ -22,6 +23,21 @@ export function StudyModeChat() {
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  const {
+    isListening,
+    isProcessing,
+    transcript,
+    toggleListening,
+    resetTranscript,
+  } = useSpeechToText();
+
+  // Sync speech transcript into the input
+  useEffect(() => {
+    if (transcript) {
+      setInput(transcript);
+    }
+  }, [transcript]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -43,10 +59,7 @@ export function StudyModeChat() {
     setIsLoading(true);
 
     // Add a temporary optimistic assistant message
-    setMessages((prev) => [
-      ...prev,
-      { role: "assistant", content: "..." },
-    ]);
+    setMessages((prev) => [...prev, { role: "assistant", content: "..." }]);
 
     try {
       // Use a lightweight model via fetch to get a quick response
@@ -191,6 +204,31 @@ export function StudyModeChat() {
               rows={1}
               className="min-h-[20px] flex-1 resize-none bg-transparent text-[13px] text-white outline-none placeholder:text-white/40"
             />
+            <button
+              type="button"
+              onClick={() => {
+                if (isListening) {
+                  toggleListening();
+                } else {
+                  resetTranscript();
+                  toggleListening();
+                }
+              }}
+              className={cn(
+                "flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-full transition-colors",
+                isListening
+                  ? "bg-red-500/60 text-white shadow-[0_0_10px_rgba(255,80,80,0.4)]"
+                  : "bg-white/20 text-white hover:bg-white/30",
+                isProcessing && !isListening && "animate-pulse",
+              )}
+              aria-label={isListening ? "Stop recording" : "Start voice input"}
+            >
+              {isListening ? (
+                <MicOff className="h-[13px] w-[13px]" />
+              ) : (
+                <Mic className="h-[13px] w-[13px]" />
+              )}
+            </button>
             <button
               type="button"
               onClick={handleSend}
