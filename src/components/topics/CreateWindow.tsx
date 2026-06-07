@@ -45,6 +45,9 @@ export function CreateWindow({ onClose }: { onClose: () => void }) {
   const tagInputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const resourcesRef = useRef<HTMLDivElement>(null);
+  const topicNameRef = useRef<HTMLTextAreaElement>(null);
+  const agentPromptRef = useRef<HTMLTextAreaElement>(null);
+  const descriptionRef = useRef<HTMLTextAreaElement>(null);
 
   // ── Derived ────────────────────────────────────────────────────────────────
   const filteredSubjects = useMemo(() => {
@@ -189,6 +192,13 @@ export function CreateWindow({ onClose }: { onClose: () => void }) {
     setTags(tags.filter((t) => t !== tag));
   };
 
+  // ── Auto-resize ────────────────────────────────────────────────────────────
+  const autoResize = (el: HTMLTextAreaElement | null) => {
+    if (!el) return;
+    el.style.height = "0";
+    el.style.height = el.scrollHeight + "px";
+  };
+
   // ── Submit handlers ────────────────────────────────────────────────────────
   const handleCreateTopic = async () => {
     if (!topicName.trim() || !user) return;
@@ -226,7 +236,6 @@ export function CreateWindow({ onClose }: { onClose: () => void }) {
       );
 
       const backlogDate = new Date();
-      backlogDate.setDate(backlogDate.getDate() + 31);
       await supabase
         .from("topics")
         .update({ next_review_date: backlogDate.toISOString() })
@@ -295,42 +304,56 @@ export function CreateWindow({ onClose }: { onClose: () => void }) {
 
         {/* ── Topic Input (Topics mode) ── */}
         {mode === "topics" && (
-          <div className="flex items-center py-[10px] shrink-0 w-full">
-            <input
+          <div className="py-[10px] w-full">
+            <textarea
+              ref={topicNameRef}
               autoFocus
               value={topicName}
-              onChange={(e) => setTopicName(e.target.value)}
+              onChange={(e) => {
+                setTopicName(e.target.value);
+                autoResize(topicNameRef.current);
+              }}
               placeholder="Write your topic here"
-              className="w-full bg-transparent border-none outline-none text-[18px] text-card-foreground placeholder:text-card-foreground/50 font-sans font-medium p-0"
+              rows={1}
+              className="w-full bg-transparent border-none outline-none text-[18px] text-card-foreground placeholder:text-card-foreground/50 font-sans font-medium p-0 resize-none overflow-hidden"
             />
           </div>
         )}
 
         {/* ── Agent Input (Agent mode) ── */}
         {mode === "agent" && (
-          <div className="flex items-center py-[10px] shrink-0 w-full">
-            <input
+          <div className="py-[10px] w-full">
+            <textarea
+              ref={agentPromptRef}
               autoFocus
               value={agentPrompt}
-              onChange={(e) => setAgentPrompt(e.target.value)}
+              onChange={(e) => {
+                setAgentPrompt(e.target.value);
+                autoResize(agentPromptRef.current);
+              }}
               placeholder="Write what you want to study"
-              className="w-full bg-transparent border-none outline-none text-[18px] text-card-foreground placeholder:text-card-foreground/50 font-sans font-medium p-0"
+              rows={1}
+              className="w-full bg-transparent border-none outline-none text-[18px] text-card-foreground placeholder:text-card-foreground/50 font-sans font-medium p-0 resize-none overflow-hidden"
             />
           </div>
         )}
 
         {/* ── Description ── */}
-        <div className="flex flex-1 items-start min-h-px py-[5px] w-full">
+        <div className="py-[5px] w-full">
           <textarea
+            ref={descriptionRef}
             value={description}
-            onChange={(e) => setDescription(e.target.value)}
+            onChange={(e) => {
+              setDescription(e.target.value);
+              autoResize(descriptionRef.current);
+            }}
             placeholder={
               mode === "topics"
                 ? "Write Description"
                 : "Explain what goals you want to achieve throughout this journey"
             }
-            rows={2}
-            className="w-full bg-transparent border-none outline-none text-[16px] text-card-foreground placeholder:text-card-foreground/50 font-sans font-medium p-0 resize-none"
+            rows={1}
+            className="w-full bg-transparent border-none outline-none text-[16px] text-card-foreground placeholder:text-card-foreground/50 font-sans font-medium p-0 resize-none overflow-hidden"
           />
         </div>
 

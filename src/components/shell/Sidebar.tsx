@@ -24,6 +24,7 @@ import {
   IconToday,
   IconTopics,
   IconSubjects,
+  IconMaterials,
   IconSchedule,
   IconPerformance,
   IconQuiz,
@@ -48,6 +49,7 @@ export function Sidebar({ onOpenCreateTopic }: SidebarProps) {
     { href: "/today", label: "Today", icon: IconToday, exact: true },
     { href: "/subjects", label: "Subjects", icon: IconSubjects },
     { href: "/topics", label: "Topics", icon: IconTopics },
+    { href: "/materials", label: "Materials", icon: IconMaterials },
     { href: "/schedule", label: "Schedule", icon: IconSchedule },
     { href: "/quiz", label: "Quiz", icon: IconQuiz, exact: true },
     {

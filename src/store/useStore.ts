@@ -300,9 +300,7 @@ export const useStore = create<AppState>()((set, get) => ({
   },
 
   addTopic: async (data, userId) => {
-    const farFuture = new Date(
-      Date.now() + 365 * 24 * 60 * 60 * 1000,
-    ).toISOString();
+    const farFuture = new Date().toISOString();
     const { data: row, error } = await supabase
       .from("topics")
       .insert({
