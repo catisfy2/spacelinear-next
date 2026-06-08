@@ -8,9 +8,6 @@ import type {
   Material,
   MaterialType,
   Note,
-  Quiz,
-  QuizFilters,
-  GapAnalysis,
 } from "@/lib/types";
 import { processReview, INITIAL_EASE } from "@/lib/algorithm";
 import { supabase } from "@/integrations/supabase/client";
@@ -118,19 +115,6 @@ interface AppState {
   moveMaterial: (id: string, newParentId: string | null) => Promise<void>;
   setCurrentFolderId: (folderId: string | null) => void;
 
-  // Quizzes
-  quizzes: Quiz[];
-  gapAnalysis: GapAnalysis[];
-  quizGenerationStatus: Record<string, "pending" | "done" | "failed">;
-  fetchQuizzes: (filters?: QuizFilters) => Promise<void>;
-  submitQuizAnswer: (
-    quizId: string,
-    selectedAnswer: string,
-    userId: string,
-  ) => Promise<boolean>;
-  fetchGapAnalysis: (userId: string) => Promise<void>;
-  triggerQuizGeneration: (material: Material) => Promise<void>;
-  startPollingQuizGeneration: (materialId: string) => void;
 }
 
 function mapResourceRow(row: any): Resource {
@@ -167,20 +151,6 @@ function mapMaterialRow(row: any): Material {
   };
 }
 
-function mapQuizRow(row: any): Quiz {
-  return {
-    id: row.id,
-    question: row.question,
-    options: Array.isArray(row.options) ? row.options : [],
-    answer: row.answer,
-    tags: row.tags ?? [],
-    subject: row.subject ?? undefined,
-    topic: row.topic ?? undefined,
-    materialId: row.material_id ?? undefined,
-    createdBy: row.created_by ?? undefined,
-    createdAt: row.created_at,
-  };
-}
 
 function mapSubjectRow(row: any): Subject {
   return {
@@ -749,7 +719,6 @@ export const useStore = create<AppState>()((set, get) => ({
     }
     const material = mapMaterialRow(data);
     set((s) => ({ materials: [...s.materials, material] }));
-    void get().triggerQuizGeneration(material);
     return material;
   },
 
@@ -768,7 +737,6 @@ export const useStore = create<AppState>()((set, get) => ({
     if (error || !data) throw error;
     const material = mapMaterialRow(data);
     set((s) => ({ materials: [...s.materials, material] }));
-    void get().triggerQuizGeneration(material);
     return material;
   },
 
@@ -787,7 +755,6 @@ export const useStore = create<AppState>()((set, get) => ({
     if (error || !data) throw error;
     const material = mapMaterialRow(data);
     set((s) => ({ materials: [...s.materials, material] }));
-    void get().triggerQuizGeneration(material);
     return material;
   },
 
@@ -882,147 +849,6 @@ export const useStore = create<AppState>()((set, get) => ({
     }));
   },
 
-  quizzes: [],
-  gapAnalysis: [],
-  quizGenerationStatus: {},
-
-  fetchQuizzes: async (filters) => {
-    let query = supabase.from("quizzes").select("*").order("created_at", {
-      ascending: false,
-    });
-
-    if (filters?.subject) {
-      query = query.eq("subject", filters.subject);
-    }
-    if (filters?.topic) {
-      query = query.eq("topic", filters.topic);
-    }
-
-    const { data, error } = await query;
-    if (error) throw error;
-    set({ quizzes: (data ?? []).map(mapQuizRow) });
-  },
-
-  submitQuizAnswer: async (quizId, selectedAnswer, userId) => {
-    const quiz = get().quizzes.find((item) => item.id === quizId);
-    if (!quiz) throw new Error("Quiz not found");
-
-    const isCorrect = selectedAnswer === quiz.answer;
-    const { error } = await supabase.from("quiz_attempts").insert({
-      user_id: userId,
-      quiz_id: quizId,
-      selected_answer: selectedAnswer,
-      is_correct: isCorrect,
-      tags: quiz.tags,
-    });
-    if (error) throw error;
-
-    await get().fetchGapAnalysis(userId);
-    return isCorrect;
-  },
-
-  fetchGapAnalysis: async (userId) => {
-    const { data, error } = await supabase
-      .from("quiz_attempts")
-      .select("tags, is_correct")
-      .eq("user_id", userId);
-
-    if (error) throw error;
-
-    const tagStats: Record<string, { total: number; correct: number }> = {};
-    for (const attempt of data ?? []) {
-      for (const tag of attempt.tags ?? []) {
-        if (!tagStats[tag]) {
-          tagStats[tag] = { total: 0, correct: 0 };
-        }
-        tagStats[tag].total += 1;
-        if (attempt.is_correct) {
-          tagStats[tag].correct += 1;
-        }
-      }
-    }
-
-    const gapAnalysis = Object.entries(tagStats)
-      .map(([tag, stats]) => ({
-        tag,
-        totalAttempts: stats.total,
-        correctCount: stats.correct,
-        accuracy:
-          stats.total > 0 ? Math.round((stats.correct / stats.total) * 100) : 0,
-      }))
-      .sort((a, b) => a.accuracy - b.accuracy);
-
-    set({ gapAnalysis });
-  },
-
-  triggerQuizGeneration: async (material) => {
-    if (material.type === "folder") return;
-
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    const accessToken = session?.access_token;
-    if (!accessToken) return;
-
-    get().startPollingQuizGeneration(material.id);
-
-    try {
-      await fetch("/api/quiz/generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          materialId: material.id,
-          materialName: material.name,
-          accessToken,
-        }),
-      });
-    } catch {
-      set((s) => ({
-        quizGenerationStatus: {
-          ...s.quizGenerationStatus,
-          [material.id]: "failed" as const,
-        },
-      }));
-    }
-  },
-
-  startPollingQuizGeneration: (materialId) => {
-    set((s) => ({
-      quizGenerationStatus: {
-        ...s.quizGenerationStatus,
-        [materialId]: "pending" as const,
-      },
-    }));
-
-    let attempts = 0;
-    const maxAttempts = 30;
-    const interval = setInterval(async () => {
-      attempts += 1;
-      // Check the old quizzes table (Inngest inserts into both old and new tables)
-      const { count } = await supabase
-        .from("quizzes")
-        .select("*", { count: "exact", head: true })
-        .eq("material_id", materialId);
-
-      if ((count ?? 0) > 0) {
-        clearInterval(interval);
-        set((s) => ({
-          quizGenerationStatus: {
-            ...s.quizGenerationStatus,
-            [materialId]: "done" as const,
-          },
-        }));
-      } else if (attempts >= maxAttempts) {
-        clearInterval(interval);
-        set((s) => ({
-          quizGenerationStatus: {
-            ...s.quizGenerationStatus,
-            [materialId]: "failed" as const,
-          },
-        }));
-      }
-    }, 3000);
-  },
 }));
 
 // Clean up old localStorage data

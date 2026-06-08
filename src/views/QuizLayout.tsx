@@ -5,11 +5,9 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 
 const tabs = [
-  { href: "/quiz/quick-practice", label: "Quick Practice" },
-  { href: "/quiz/sets", label: "Question Sets" },
-  { href: "/quiz/mock-test", label: "Mock Test" },
-  { href: "/quiz/performance", label: "Performance" },
+  { href: "/quiz/new", label: "New Quiz" },
   { href: "/quiz/history", label: "History" },
+  { href: "/quiz/report", label: "Report" },
 ];
 
 export function QuizLayout({ children }: { children: React.ReactNode }) {
@@ -20,7 +18,7 @@ export function QuizLayout({ children }: { children: React.ReactNode }) {
       <div className="border-b border-border">
         <div className="flex gap-0 px-6">
           {tabs.map((tab) => {
-            const isActive = pathname === tab.href;
+            const isActive = pathname === tab.href || pathname.startsWith(tab.href + "/");
             return (
               <Link
                 key={tab.href}

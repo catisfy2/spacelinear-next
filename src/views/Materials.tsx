@@ -39,7 +39,6 @@ export function MaterialsPage() {
     deleteMaterial,
     toggleStar,
     moveMaterial,
-    quizGenerationStatus,
   } = useStore();
 
   // UI state
@@ -158,10 +157,6 @@ export function MaterialsPage() {
     [user, currentFolderId, addText],
   );
 
-  const pendingQuizCount = Object.values(quizGenerationStatus).filter(
-    (status) => status === "pending",
-  ).length;
-
   const handleRename = useCallback(
     async (newName: string) => {
       if (!renameTarget) return;
@@ -194,13 +189,6 @@ export function MaterialsPage() {
       />
 
       <div className="space-y-4">
-        {pendingQuizCount > 0 && (
-          <div className="rounded-lg border border-border bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
-            Generating quizzes for {pendingQuizCount} material
-            {pendingQuizCount === 1 ? "" : "s"}...
-          </div>
-        )}
-
         {/* Toolbar */}
         <MaterialsToolbar
           crumbs={crumbs}

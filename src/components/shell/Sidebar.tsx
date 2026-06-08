@@ -18,9 +18,11 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useAuth } from "@/hooks/useAuth";
 import { SidebarToolbar } from "./SidebarToolbar";
 import { SidebarRecent } from "./SidebarRecent";
+import { SidebarMochi } from "./SidebarMochi";
 import {
   IconLogo,
   IconChat,
+  IconMochi,
   IconToday,
   IconTopics,
   IconSubjects,
@@ -46,12 +48,13 @@ export function Sidebar({ onOpenCreateTopic }: SidebarProps) {
 
   const navItems = [
     { href: "/chat", label: "Chat", icon: IconChat },
+    { href: "/mochi", label: "Mochi", icon: IconMochi },
     { href: "/today", label: "Today", icon: IconToday, exact: true },
     { href: "/subjects", label: "Subjects", icon: IconSubjects },
     { href: "/topics", label: "Topics", icon: IconTopics },
     { href: "/materials", label: "Materials", icon: IconMaterials },
     { href: "/schedule", label: "Schedule", icon: IconSchedule },
-    { href: "/quiz", label: "Quiz", icon: IconQuiz, exact: true },
+    { href: "/quiz", label: "Quiz", icon: IconQuiz },
     {
       href: "/pulse",
       label: "Performance",
@@ -88,36 +91,41 @@ export function Sidebar({ onOpenCreateTopic }: SidebarProps) {
       </SidebarHeader>
 
       <SidebarContent className="group-data-[state=expanded]:px-[10px] py-0 gap-[13px]">
-        <SidebarToolbar onOpenCreateTopic={onOpenCreateTopic ?? (() => {})} />
-
-        <div className="flex flex-col items-start group-data-[collapsible=icon]:items-center justify-center w-full">
-          <SidebarMenu className="gap-0">
-            {navItems.map((item) => (
-              <SidebarMenuItem key={item.href}>
-                <SidebarMenuButton
-                  asChild
-                  isActive={isActive(item.href, item.exact)}
-                  tooltip={item.label}
-                  size="sm"
-                  className="group/menu-item px-[12px] py-[10px] h-[35px] rounded-[6px] data-[active=true]:bg-sidebar-accent data-[active=true]:rounded-[6px] group-data-[collapsible=icon]:mx-auto"
-                >
-                  <Link href={item.href}>
-                    <item.icon className="size-[16px] group-data-[collapsible=icon]:size-[18px]" />
-                    <span
-                      className={`text-sm font-medium transition-opacity group-data-[collapsible=icon]:hidden ${isActive(item.href, item.exact) ? "opacity-100" : "opacity-85 group-hover/menu-item:opacity-100"}`}
+        {pathname === "/mochi" || pathname?.startsWith("/mochi/") ? (
+          <SidebarMochi />
+        ) : (
+          <>
+            <SidebarToolbar onOpenCreateTopic={onOpenCreateTopic ?? (() => {})} />
+            <div className="flex flex-col items-start group-data-[collapsible=icon]:items-center justify-center w-full">
+              <SidebarMenu className="gap-0">
+                {navItems.map((item) => (
+                  <SidebarMenuItem key={item.href}>
+                    <SidebarMenuButton
+                      asChild
+                      isActive={isActive(item.href, item.exact)}
+                      tooltip={item.label}
+                      size="sm"
+                      className="group/menu-item px-[12px] py-[10px] h-[35px] rounded-[6px] data-[active=true]:bg-sidebar-accent data-[active=true]:rounded-[6px] group-data-[collapsible=icon]:mx-auto"
                     >
-                      {item.label}
-                    </span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            ))}
-          </SidebarMenu>
+                      <Link href={item.href}>
+                        <item.icon className="size-[16px] group-data-[collapsible=icon]:size-[18px]" />
+                        <span
+                          className={`text-sm font-medium transition-opacity group-data-[collapsible=icon]:hidden ${isActive(item.href, item.exact) ? "opacity-100" : "opacity-85 group-hover/menu-item:opacity-100"}`}
+                        >
+                          {item.label}
+                        </span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
 
-          <div className="group-data-[collapsible=icon]:hidden w-full">
-            <SidebarRecent />
-          </div>
-        </div>
+              <div className="group-data-[collapsible=icon]:hidden w-full">
+                <SidebarRecent />
+              </div>
+            </div>
+          </>
+        )}
       </SidebarContent>
 
       <SidebarFooter className="p-0 pb-[12px] group-data-[state=expanded]:pl-[10px] group-data-[state=expanded]:pr-[10px]">

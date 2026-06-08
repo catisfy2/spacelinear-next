@@ -1,22 +1,35 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-import { inngest } from '@/lib/inngest/client';
+import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
+import { inngest } from "@/lib/inngest/client";
+import type { GenerationMode } from "@/types/quiz";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
 export async function POST(req: NextRequest) {
-  const { materialId, materialName, accessToken } = await req.json();
-
-  if (!materialId || !materialName) {
-    return NextResponse.json(
-      { error: 'materialId and materialName are required' },
-      { status: 400 },
-    );
-  }
+  const body = await req.json();
+  const {
+    mode,
+    topicIds,
+    customTopic,
+    materialIds,
+    questionCount = 10,
+    difficulty = "mixed",
+    supplementWithWeb = false,
+    accessToken,
+  } = body as {
+    mode: GenerationMode;
+    topicIds?: string[];
+    customTopic?: string;
+    materialIds?: string[];
+    questionCount?: number;
+    difficulty?: string;
+    supplementWithWeb?: boolean;
+    accessToken: string;
+  };
 
   if (!accessToken) {
-    return NextResponse.json({ error: 'accessToken is required' }, { status: 401 });
+    return NextResponse.json({ error: "accessToken required" }, { status: 401 });
   }
 
   const authClient = createClient(supabaseUrl, supabaseAnonKey, {
@@ -24,55 +37,62 @@ export async function POST(req: NextRequest) {
     global: { headers: { Authorization: `Bearer ${accessToken}` } },
   });
 
-  const {
-    data: { user },
-    error,
-  } = await authClient.auth.getUser();
-
-  if (error || !user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const { data: { user }, error: authError } = await authClient.auth.getUser();
+  if (authError || !user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { data: material, error: materialError } = await authClient
-    .from('materials')
-    .select('id, name, user_id')
-    .eq('id', materialId)
+  let title = "Quiz";
+  if (mode === "today") title = "Today's Quiz";
+  else if (mode === "topic" && topicIds?.length) {
+    const { data: topics } = await authClient
+      .from("topics")
+      .select("title")
+      .in("id", topicIds);
+    title = `Quiz: ${(topics ?? []).map((t) => t.title).join(", ")}`;
+  } else if (mode === "custom" && customTopic) {
+    title = `Quiz: ${customTopic}`;
+  } else if (mode === "materials" && materialIds?.length) {
+    const { data: materials } = await authClient
+      .from("materials")
+      .select("name")
+      .in("id", materialIds);
+    title = `Quiz: ${(materials ?? []).map((m) => m.name).join(", ")}`;
+  }
+
+  const { data: questionSet, error: insertError } = await authClient
+    .from("question_sets")
+    .insert({
+      user_id: user.id,
+      title,
+      question_count: questionCount,
+      difficulty,
+      generation_mode: mode,
+      generation_status: "queued",
+    })
+    .select("id")
     .single();
 
-  if (materialError || !material) {
-    return NextResponse.json({ error: 'Material not found' }, { status: 404 });
+  if (insertError || !questionSet) {
+    return NextResponse.json(
+      { error: "Failed to create question set" },
+      { status: 500 },
+    );
   }
 
-  const [{ data: subjects }, { data: topics }] = await Promise.all([
-    authClient.from('subjects').select('id, name').eq('user_id', user.id),
-    authClient.from('topics').select('id, title, subject_id').eq('user_id', user.id),
-  ]);
-
-  const subjectNameById = new Map(
-    (subjects ?? []).map((subject) => [subject.id, subject.name]),
-  );
-
-  const subjectTopicCatalog = {
-    subjects: (subjects ?? []).map((subject) => ({
-      id: subject.id,
-      name: subject.name,
-    })),
-    topics: (topics ?? []).map((topic) => ({
-      id: topic.id,
-      title: topic.title,
-      subjectName: subjectNameById.get(topic.subject_id ?? '') ?? null,
-    })),
-  };
-
   await inngest.send({
-    name: 'material/quiz.generate',
+    name: "quiz/generate",
     data: {
-      materialId,
-      materialName: materialName ?? material.name,
-      userId: user.id,
-      subjectTopicCatalog,
+      questionSetId: questionSet.id,
+      mode,
+      topicIds,
+      customTopic,
+      materialIds,
+      questionCount,
+      difficulty,
+      supplementWithWeb,
     },
   });
 
-  return NextResponse.json({ queued: true }, { status: 202 });
+  return NextResponse.json({ questionSetId: questionSet.id }, { status: 202 });
 }

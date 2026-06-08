@@ -14,12 +14,7 @@ import type { ReviewHistoryEntry } from '@/lib/types';
 
 export function PulsePage() {
   const { user } = useAuth();
-  const { topics, subjects, reviewHistory, gapAnalysis, fetchGapAnalysis } = useStore();
-
-  useEffect(() => {
-    if (!user) return;
-    void fetchGapAnalysis(user.id);
-  }, [user, fetchGapAnalysis]);
+  const { topics, subjects, reviewHistory } = useStore();
 
   const stats = useMemo(
     () => buildPulseStats(topics, reviewHistory),
@@ -131,41 +126,13 @@ export function PulsePage() {
         <div className="mb-4">
           <h3 className="text-sm font-medium text-foreground">Gap analysis</h3>
           <p className="text-xs text-muted-foreground">
-            Tag-level accuracy based on your quiz attempts.
+            Head to{" "}
+            <a href="/quiz" className="text-primary underline underline-offset-2">
+              quiz history
+            </a>{" "}
+            to view your gap analysis after taking quizzes.
           </p>
         </div>
-
-        {gapAnalysis.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            Answer quiz questions to see which tags need more practice.
-          </p>
-        ) : (
-          <div className="space-y-3">
-            {gapAnalysis.map((item) => (
-              <div key={item.tag} className="space-y-1">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="font-medium text-foreground">{item.tag}</span>
-                  <span className="text-muted-foreground">
-                    {item.correctCount}/{item.totalAttempts} ({item.accuracy}%)
-                  </span>
-                </div>
-                <div className="h-2 overflow-hidden rounded-full bg-muted">
-                  <div
-                    className={cn(
-                      'h-full rounded-full transition-all',
-                      item.accuracy >= 70
-                        ? 'bg-emerald-500'
-                        : item.accuracy >= 40
-                          ? 'bg-amber-500'
-                          : 'bg-red-500',
-                    )}
-                    style={{ width: `${item.accuracy}%` }}
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
       </div>
     </PageShell>
   );
