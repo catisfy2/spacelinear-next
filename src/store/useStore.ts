@@ -72,6 +72,8 @@ interface AppState {
   refreshTopicFromDb: (topicId: string) => Promise<void>;
   scheduleTopicForToday: (topicId: string) => Promise<void>;
   moveToBacklog: (topicId: string) => Promise<void>;
+  archiveTopic: (topicId: string) => Promise<void>;
+  unarchiveTopic: (topicId: string) => Promise<void>;
 
   // Notes
   notes: Note[];
@@ -195,6 +197,7 @@ function mapTopicRow(row: any): Topic {
   return {
     id: row.id,
     subjectId: row.subject_id,
+    planId: row.plan_id ?? undefined,
     title: row.title,
     description: row.description ?? undefined,
     notes: row.notes ?? undefined,
@@ -532,6 +535,38 @@ export const useStore = create<AppState>()((set, get) => ({
   },
 
   moveToBacklog: async (topicId: string) => {
+    const farFuture = new Date(
+      Date.now() + 365 * 24 * 60 * 60 * 1000,
+    ).toISOString();
+
+    await supabase
+      .from("topics")
+      .update({ state: "backlog", next_review_date: farFuture })
+      .eq("id", topicId);
+
+    set((s) => ({
+      topics: s.topics.map((t) =>
+        t.id === topicId
+          ? { ...t, state: "backlog" as const, nextReviewDate: farFuture }
+          : t,
+      ),
+    }));
+  },
+
+  archiveTopic: async (topicId: string) => {
+    await supabase
+      .from("topics")
+      .update({ state: "archived" })
+      .eq("id", topicId);
+
+    set((s) => ({
+      topics: s.topics.map((t) =>
+        t.id === topicId ? { ...t, state: "archived" as const } : t,
+      ),
+    }));
+  },
+
+  unarchiveTopic: async (topicId: string) => {
     const farFuture = new Date(
       Date.now() + 365 * 24 * 60 * 60 * 1000,
     ).toISOString();

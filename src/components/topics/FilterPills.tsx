@@ -2,12 +2,13 @@
 
 import { cn } from "@/lib/utils";
 
-export type PillMode = "date" | "subject" | "state";
+export type PillMode = "date" | "subject" | "state" | "archived";
 
 const PILLS: { value: PillMode; label: string }[] = [
   { value: "date", label: "Date" },
   { value: "subject", label: "Subject" },
   { value: "state", label: "State" },
+  { value: "archived", label: "Archived" },
 ];
 
 export function FilterPills({

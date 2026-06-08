@@ -15,4 +15,5 @@ export const STATE_DOT_CLASS: Record<TopicState, string> = {
   learning: "bg-sl-hard",
   new: "bg-sl-new",
   reviewing: "bg-sl-easy",
+  archived: "bg-muted-foreground/20",
 };

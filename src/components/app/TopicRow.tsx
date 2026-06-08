@@ -1,9 +1,11 @@
 "use client";
 
+import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { formatNextReview, DIFFICULTY_CONFIG } from "@/lib/constants";
+import { useStore } from "@/store/useStore";
 import type { Topic, Subject } from "@/lib/types";
 
 function formatSafeDate(
@@ -89,6 +91,24 @@ export function TopicRow({
   className?: string;
 }) {
   const router = useRouter();
+  const { scheduleTopicForToday } = useStore();
+  const [showPopover, setShowPopover] = useState(false);
+  const popoverRef = useRef<HTMLDivElement>(null);
+
+  const isPlanned = topic.planId && topic.state === "backlog";
+  const isArchived = topic.state === "archived";
+
+  useEffect(() => {
+    if (!showPopover) return;
+    const handler = (e: MouseEvent) => {
+      if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
+        setShowPopover(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [showPopover]);
+
   const isDue = (() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -103,85 +123,141 @@ export function TopicRow({
       ? "New"
       : topic.state === "backlog"
         ? "Backlog"
-        : isDue
-          ? "Due Now"
-          : formatNextReview(topic.nextReviewDate);
+        : topic.state === "archived"
+          ? "Archived"
+          : isDue
+            ? "Due Now"
+            : formatNextReview(topic.nextReviewDate);
+
+  const handleRowClick = () => {
+    if (isPlanned) {
+      setShowPopover(true);
+    } else {
+      router.push(`/topics/${topic.id}`);
+    }
+  };
+
+  const handleStudyToday = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    await scheduleTopicForToday(topic.id);
+    setShowPopover(false);
+  };
+
+  const handleView = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setShowPopover(false);
+    router.push(`/topics/${topic.id}`);
+  };
 
   return (
-    <div
-      role="button"
-      tabIndex={0}
-      className={cn(
-        "group flex w-full items-center justify-between px-[14px] py-[8px] transition-colors rounded-[14px] cursor-pointer",
-        selected ? "bg-sl-surface-hover" : "hover:bg-sl-surface-hover",
-        className,
-      )}
-      onClick={() => router.push(`/topics/${topic.id}`)}
-      onKeyDown={(e) => {
-        if (e.key === "Enter") router.push(`/topics/${topic.id}`);
-      }}
-    >
-      <div className="flex items-center gap-[10px]">
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onToggle?.(topic.id);
-          }}
-          className="shrink-0"
-        >
-          {selected ? <CheckIcon /> : <UncheckIcon />}
-        </button>
-        <span
-          className={cn(
-            "font-medium text-[16px] whitespace-nowrap transition-colors",
-            selected ? "text-[#0f0e0a]" : "text-foreground",
-          )}
-        >
-          {topic.title}
-        </span>
-      </div>
-
-      <div className="flex items-center gap-[45px]">
-        <span className="hidden group-hover:inline text-[12px] font-medium text-black whitespace-nowrap">
-          {topic.totalReviews}{" "}
-          {topic.totalReviews === 1 ? "review" : "reviews"}
-        </span>
-
-        {showSubject && subject && (
-          <span className="font-medium text-[14px] text-[#585858] whitespace-nowrap">
-            {subject.icon} {subject.name}
-          </span>
+    <div className="relative w-full">
+      <div
+        role="button"
+        tabIndex={0}
+        className={cn(
+          "group flex w-full items-center justify-between px-[14px] py-[8px] transition-colors rounded-[14px] cursor-pointer",
+          selected ? "bg-sl-surface-hover" : "hover:bg-sl-surface-hover",
+          className,
         )}
-
-        {topic.currentDifficulty && (
+        onClick={handleRowClick}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") handleRowClick();
+        }}
+      >
+        <div className="flex items-center gap-[10px]">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggle?.(topic.id);
+            }}
+            className="shrink-0"
+          >
+            {selected ? <CheckIcon /> : <UncheckIcon />}
+          </button>
           <span
             className={cn(
-              "flex items-center justify-center px-[18px] py-[6px] rounded-[30px] text-[12px] font-medium whitespace-nowrap",
-              DIFFICULTY_BG_CLASS[topic.currentDifficulty] ?? "",
+              "font-medium text-[16px] whitespace-nowrap transition-colors",
+              selected ? "text-[#0f0e0a]" : "text-foreground",
             )}
           >
-            {DIFFICULTY_CONFIG[topic.currentDifficulty]?.label ??
-              topic.currentDifficulty}
+            {topic.title}
           </span>
-        )}
-
-        <span
-          className={cn(
-            "flex items-center justify-center shrink-0 text-[12px] font-medium whitespace-nowrap transition-colors",
-            selected ? "text-[#0f0e0a]" : "text-foreground",
-            statusDisplay === "Due Now" ? "text-sl-relearn" : "",
+          {isPlanned && (
+            <span className="text-[11px] px-2 py-0.5 rounded-full bg-muted text-card-foreground/40 ml-1 shrink-0">
+              Planned
+            </span>
           )}
-        >
-          {statusDisplay}
-        </span>
+          {isArchived && (
+            <span className="text-[11px] px-2 py-0.5 rounded-full bg-muted text-card-foreground/40 ml-1 shrink-0">
+              Archived
+            </span>
+          )}
+        </div>
 
-        {showDate && (
-          <span className="flex items-center justify-center w-[68px] text-[12px] font-medium text-foreground whitespace-nowrap shrink-0">
-            {formatSafeDate(topic.nextReviewDate, "d MMM")}
+        <div className="flex items-center gap-[45px]">
+          <span className="hidden group-hover:inline text-[12px] font-medium text-black whitespace-nowrap">
+            {topic.totalReviews}{" "}
+            {topic.totalReviews === 1 ? "review" : "reviews"}
           </span>
-        )}
+
+          {showSubject && subject && (
+            <span className="font-medium text-[14px] text-[#585858] whitespace-nowrap">
+              {subject.icon} {subject.name}
+            </span>
+          )}
+
+          {topic.currentDifficulty && (
+            <span
+              className={cn(
+                "flex items-center justify-center px-[18px] py-[6px] rounded-[30px] text-[12px] font-medium whitespace-nowrap",
+                DIFFICULTY_BG_CLASS[topic.currentDifficulty] ?? "",
+              )}
+            >
+              {DIFFICULTY_CONFIG[topic.currentDifficulty]?.label ??
+                topic.currentDifficulty}
+            </span>
+          )}
+
+          <span
+            className={cn(
+              "flex items-center justify-center shrink-0 text-[12px] font-medium whitespace-nowrap transition-colors",
+              selected ? "text-[#0f0e0a]" : "text-foreground",
+              statusDisplay === "Due Now" ? "text-sl-relearn" : "",
+            )}
+          >
+            {statusDisplay}
+          </span>
+
+          {showDate && (
+            <span className="flex items-center justify-center w-[68px] text-[12px] font-medium text-foreground whitespace-nowrap shrink-0">
+              {formatSafeDate(topic.nextReviewDate, "d MMM")}
+            </span>
+          )}
+        </div>
       </div>
+
+      {showPopover && isPlanned && (
+        <div
+          ref={popoverRef}
+          className="absolute left-[14px] top-full mt-1 z-50 bg-card border border-border rounded-xl shadow-xl py-1 min-w-[140px]"
+        >
+          <button
+            type="button"
+            onClick={handleStudyToday}
+            className="w-full text-left px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors"
+          >
+            Study Today
+          </button>
+          <button
+            type="button"
+            onClick={handleView}
+            className="w-full text-left px-4 py-2 text-sm text-foreground hover:bg-muted transition-colors"
+          >
+            View
+          </button>
+        </div>
+      )}
     </div>
   );
 }

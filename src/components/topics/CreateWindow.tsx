@@ -1,13 +1,15 @@
 "use client";
 
-import { useState, useRef, useEffect, useMemo } from "react";
+import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { useStore } from "@/store/useStore";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DEFAULT_SUBJECT_COLORS, DEFAULT_SUBJECT_ICONS } from "@/lib/constants";
+import { PlanReview } from "@/components/plan/PlanReview";
+import type { StudyPlanData } from "@/lib/types";
 
 export function CreateWindow({ onClose }: { onClose: () => void }) {
   const { addTopic, addSubject, subjects } = useStore();
@@ -38,6 +40,12 @@ export function CreateWindow({ onClose }: { onClose: () => void }) {
   const [keepOpen, setKeepOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [highlightedIdx, setHighlightedIdx] = useState(-1);
+
+  // ── Agent plan state ───────────────────────────────────────────────────────
+  const [agentView, setAgentView] = useState<"input" | "loading" | "review">("input");
+  const [planId, setPlanId] = useState<string | null>(null);
+  const [planData, setPlanData] = useState<StudyPlanData | null>(null);
+  const [loadingMessage, setLoadingMessage] = useState("Analyzing your study goals...");
 
   // ── Refs ───────────────────────────────────────────────────────────────────
   const subjectWrapperRef = useRef<HTMLDivElement>(null);
@@ -116,6 +124,12 @@ export function CreateWindow({ onClose }: { onClose: () => void }) {
       });
     }
   }, [highlightedIdx]);
+
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = prev; };
+  }, []);
 
   // ── Subject handlers ───────────────────────────────────────────────────────
   const handleSubjectSelect = (s: {
@@ -264,8 +278,108 @@ export function CreateWindow({ onClose }: { onClose: () => void }) {
     }
   };
 
-  const handleGenerate = () => {
-    toast.info("Agent generation coming soon");
+  const pollPlanStatus = useCallback(
+    async (id: string, accessToken: string) => {
+      const maxAttempts = 60;
+      const pollInterval = 3000;
+      const messages = [
+        "Analyzing your study goals...",
+        "Extracting content from files...",
+        "Identifying topics and prerequisites...",
+        "Searching the web for best resources...",
+        "Curating learning materials...",
+        "Assembling your personalized study plan...",
+        "Finalizing your plan...",
+      ];
+
+      for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        const msgIdx = Math.min(
+          attempt,
+          messages.length - 1
+        );
+        setLoadingMessage(messages[msgIdx]);
+
+        await new Promise((resolve) => setTimeout(resolve, pollInterval));
+
+        try {
+          const response = await fetch(
+            `/api/agent/plan?id=${id}&accessToken=${encodeURIComponent(accessToken)}`
+          );
+          if (!response.ok) continue;
+
+          const plan = await response.json();
+
+          if (plan.status === "review") {
+            setPlanData(plan.planData);
+            setAgentView("review");
+            return;
+          }
+
+          if (plan.status === "applied" || plan.status === "archived") {
+            setAgentView("input");
+            toast.info("This plan has already been processed.");
+            return;
+          }
+        } catch {
+          // Retry on network error
+        }
+      }
+
+      // Timeout
+      setAgentView("input");
+      toast.error("Plan generation timed out. Please try again.");
+    },
+    []
+  );
+
+  const handleGenerate = async () => {
+    if (!agentPrompt.trim() || !user) return;
+
+    setSubmitting(true);
+    setAgentView("loading");
+    setLoadingMessage("Analyzing your study goals...");
+
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const accessToken = session?.access_token;
+
+      if (!accessToken) {
+        toast.error("You must be logged in");
+        setAgentView("input");
+        setSubmitting(false);
+        return;
+      }
+
+      const response = await fetch("/api/agent/plan", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          prompt: agentPrompt.trim(),
+          description: description.trim() || "",
+          materialIds: [],
+          accessToken,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error ?? "Failed to start plan generation");
+      }
+
+      setPlanId(result.planId);
+      await pollPlanStatus(result.planId, accessToken);
+    } catch (error) {
+      console.error("Generate plan error:", error);
+      toast.error(
+        error instanceof Error ? error.message : "Failed to generate plan"
+      );
+      setAgentView("input");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleOverlayKeyDown = (e: React.KeyboardEvent) => {
@@ -281,7 +395,7 @@ export function CreateWindow({ onClose }: { onClose: () => void }) {
       onKeyDown={handleOverlayKeyDown}
     >
       <div
-        className="bg-card flex flex-col gap-3 px-[22px] py-4 rounded-[22px] w-full max-w-xl shadow-2xl border border-border"
+        className="bg-card flex flex-col gap-3 px-[22px] py-4 rounded-[22px] w-full max-w-xl max-h-[90vh] shadow-2xl border border-border"
         onClick={(e) => e.stopPropagation()}
       >
         {/* ── Header ── */}
@@ -321,7 +435,7 @@ export function CreateWindow({ onClose }: { onClose: () => void }) {
         )}
 
         {/* ── Agent Input (Agent mode) ── */}
-        {mode === "agent" && (
+        {mode === "agent" && agentView === "input" && (
           <div className="py-[10px] w-full">
             <textarea
               ref={agentPromptRef}
@@ -338,24 +452,50 @@ export function CreateWindow({ onClose }: { onClose: () => void }) {
           </div>
         )}
 
-        {/* ── Description ── */}
-        <div className="py-[5px] w-full">
-          <textarea
-            ref={descriptionRef}
-            value={description}
-            onChange={(e) => {
-              setDescription(e.target.value);
-              autoResize(descriptionRef.current);
+        {/* ── Agent Loading ── */}
+        {mode === "agent" && agentView === "loading" && (
+          <div className="flex flex-col items-center justify-center py-12 gap-4 w-full">
+            <Loader2 className="size-8 text-primary animate-spin" />
+            <p className="text-[15px] text-card-foreground/60 font-sans font-medium text-center">
+              {loadingMessage}
+            </p>
+          </div>
+        )}
+
+        {/* ── Agent Review ── */}
+        {mode === "agent" && agentView === "review" && planData && planId && (
+          <PlanReview
+            planId={planId}
+            planData={planData}
+            onApplied={() => {
+              setAgentView("input");
+              setAgentPrompt("");
+              setDescription("");
             }}
-            placeholder={
-              mode === "topics"
-                ? "Write Description"
-                : "Explain what goals you want to achieve throughout this journey"
-            }
-            rows={1}
-            className="w-full bg-transparent border-none outline-none text-[16px] text-card-foreground placeholder:text-card-foreground/50 font-sans font-medium p-0 resize-none overflow-hidden"
+            onClose={onClose}
           />
-        </div>
+        )}
+
+        {/* ── Description (topics mode or agent input) ── */}
+        {(mode === "topics" || (mode === "agent" && agentView === "input")) && (
+          <div className="py-[5px] w-full">
+            <textarea
+              ref={descriptionRef}
+              value={description}
+              onChange={(e) => {
+                setDescription(e.target.value);
+                autoResize(descriptionRef.current);
+              }}
+              placeholder={
+                mode === "topics"
+                  ? "Write Description"
+                  : "Explain what goals you want to achieve throughout this journey"
+              }
+              rows={1}
+              className="w-full bg-transparent border-none outline-none text-[16px] text-card-foreground placeholder:text-card-foreground/50 font-sans font-medium p-0 resize-none overflow-hidden"
+            />
+          </div>
+        )}
 
         {/* ── Category Row (Topics mode only) ── */}
         {mode === "topics" && (
@@ -582,33 +722,35 @@ export function CreateWindow({ onClose }: { onClose: () => void }) {
 
         {/* ── Action Container ── */}
         <div className="flex items-center justify-between shrink-0 w-full">
-          {/* Topics/Agent Toggle */}
-          <div className="border border-primary/70 flex items-center rounded-full shrink-0">
-            <button
-              type="button"
-              onClick={() => setMode("topics")}
-              className={cn(
-                "flex items-center justify-center px-[22px] py-[6px] rounded-full text-[16px] font-sans font-medium transition-colors",
-                mode === "topics"
-                  ? "bg-primary text-primary-foreground"
-                  : "text-card-foreground/60 hover:text-card-foreground",
-              )}
-            >
-              Topics
-            </button>
-            <button
-              type="button"
-              onClick={() => setMode("agent")}
-              className={cn(
-                "flex items-center justify-center px-[22px] py-[6px] rounded-full text-[16px] font-sans font-medium transition-colors",
-                mode === "agent"
-                  ? "bg-primary text-primary-foreground"
-                  : "text-card-foreground/60 hover:text-card-foreground",
-              )}
-            >
-              Agent
-            </button>
-          </div>
+          {/* Topics/Agent Toggle (hidden during loading/review) */}
+          {!(mode === "agent" && agentView !== "input") && (
+            <div className="border border-primary/70 flex items-center rounded-full shrink-0">
+              <button
+                type="button"
+                onClick={() => setMode("topics")}
+                className={cn(
+                  "flex items-center justify-center px-[22px] py-[6px] rounded-full text-[16px] font-sans font-medium transition-colors",
+                  mode === "topics"
+                    ? "bg-primary text-primary-foreground"
+                    : "text-card-foreground/60 hover:text-card-foreground",
+                )}
+              >
+                Topics
+              </button>
+              <button
+                type="button"
+                onClick={() => setMode("agent")}
+                className={cn(
+                  "flex items-center justify-center px-[22px] py-[6px] rounded-full text-[16px] font-sans font-medium transition-colors",
+                  mode === "agent"
+                    ? "bg-primary text-primary-foreground"
+                    : "text-card-foreground/60 hover:text-card-foreground",
+                )}
+              >
+                Agent
+              </button>
+            </div>
+          )}
 
           {/* Right side */}
           {mode === "topics" ? (
@@ -642,15 +784,16 @@ export function CreateWindow({ onClose }: { onClose: () => void }) {
                 {submitting ? "Creating..." : "Create Topics"}
               </button>
             </div>
-          ) : (
+          ) : agentView === "input" ? (
             <button
               type="button"
               onClick={handleGenerate}
-              className="bg-primary flex items-center justify-center px-[22px] py-[6px] rounded-[31px] text-[18px] font-sans font-medium text-primary-foreground transition-opacity hover:opacity-90"
+              disabled={!agentPrompt.trim() || submitting}
+              className="bg-primary flex items-center justify-center px-[22px] py-[6px] rounded-[31px] text-[18px] font-sans font-medium text-primary-foreground disabled:opacity-50 disabled:cursor-not-allowed transition-opacity hover:opacity-90"
             >
-              Generate
+              {submitting ? "Generating..." : "Generate"}
             </button>
-          )}
+          ) : null}
         </div>
       </div>
     </div>

@@ -39,7 +39,7 @@ function getDateLabel(dateStr: string): string {
 }
 
 export function TopicsPage() {
-  const { topics, subjects } = useStore();
+  const { topics, subjects, scheduleTopicForToday, archiveTopic, unarchiveTopic } = useStore();
 
   const [activePill, setActivePill] = useState<PillMode>("date");
   const [selectedTopicIds, setSelectedTopicIds] = useState<Set<string>>(
@@ -64,6 +64,7 @@ export function TopicsPage() {
 
   const handlePillChange = useCallback((pill: PillMode) => {
     setActivePill(pill);
+    setSelectedTopicIds(new Set());
   }, []);
 
   const subjectMap = useMemo(
@@ -81,11 +82,27 @@ export function TopicsPage() {
     return sorted;
   }, [topics]);
 
+  const isHiddenFromDateAndState = useCallback(
+    (t: Topic) => (t.planId && t.state === "backlog") || t.state === "archived",
+    [],
+  );
+
   const groupedTopics = useMemo(() => {
     const groups = new Map<string, Topic[]>();
 
+    if (activePill === "archived") {
+      for (const topic of sortedTopics) {
+        if (topic.state !== "archived") continue;
+        const label = "Archived";
+        if (!groups.has(label)) groups.set(label, []);
+        groups.get(label)!.push(topic);
+      }
+      return groups;
+    }
+
     if (activePill === "date") {
       for (const topic of sortedTopics) {
+        if (isHiddenFromDateAndState(topic)) continue;
         const label = getDateLabel(topic.nextReviewDate);
         if (!groups.has(label)) groups.set(label, []);
         groups.get(label)!.push(topic);
@@ -95,6 +112,7 @@ export function TopicsPage() {
 
     if (activePill === "subject") {
       for (const topic of sortedTopics) {
+        if (topic.state === "archived") continue;
         const subject = subjectMap.get(topic.subjectId);
         const label = subject?.name ?? "Unknown";
         if (!groups.has(label)) groups.set(label, []);
@@ -105,6 +123,7 @@ export function TopicsPage() {
 
     if (activePill === "state") {
       for (const topic of sortedTopics) {
+        if (isHiddenFromDateAndState(topic)) continue;
         const label = STATE_MAP[topic.state] ?? "Other";
         if (!groups.has(label)) groups.set(label, []);
         groups.get(label)!.push(topic);
@@ -117,7 +136,40 @@ export function TopicsPage() {
     }
 
     return groups;
-  }, [sortedTopics, activePill, subjectMap]);
+  }, [sortedTopics, activePill, subjectMap, isHiddenFromDateAndState]);
+
+  const selectedTopicObjs = useMemo(
+    () => topics.filter((t) => selectedTopicIds.has(t.id)),
+    [topics, selectedTopicIds],
+  );
+
+  const allSelectedArchived = useMemo(
+    () =>
+      selectedTopicObjs.length > 0 &&
+      selectedTopicObjs.every((t) => t.state === "archived"),
+    [selectedTopicObjs],
+  );
+
+  const handleBatchStudyToday = useCallback(async () => {
+    for (const id of selectedTopicIds) {
+      await scheduleTopicForToday(id);
+    }
+    setSelectedTopicIds(new Set());
+  }, [selectedTopicIds, scheduleTopicForToday]);
+
+  const handleBatchArchive = useCallback(async () => {
+    for (const id of selectedTopicIds) {
+      await archiveTopic(id);
+    }
+    setSelectedTopicIds(new Set());
+  }, [selectedTopicIds, archiveTopic]);
+
+  const handleBatchUnarchive = useCallback(async () => {
+    for (const id of selectedTopicIds) {
+      await unarchiveTopic(id);
+    }
+    setSelectedTopicIds(new Set());
+  }, [selectedTopicIds, unarchiveTopic]);
 
   if (topics.length === 0) {
     return (
@@ -148,6 +200,40 @@ export function TopicsPage() {
       <div className="flex flex-col gap-[32px] items-start w-[1246px] max-w-full">
         <div className="flex items-center justify-between w-full">
           <FilterPills value={activePill} onChange={handlePillChange} />
+
+          {selectedTopicObjs.length > 0 && (
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-card-foreground/60">
+                {selectedTopicObjs.length} selected
+              </span>
+              {allSelectedArchived ? (
+                <button
+                  type="button"
+                  onClick={handleBatchUnarchive}
+                  className="bg-primary flex items-center justify-center px-4 py-1.5 rounded-[31px] text-[13px] font-medium text-primary-foreground transition-opacity hover:opacity-90"
+                >
+                  Unarchive
+                </button>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={handleBatchStudyToday}
+                    className="bg-primary flex items-center justify-center px-4 py-1.5 rounded-[31px] text-[13px] font-medium text-primary-foreground transition-opacity hover:opacity-90"
+                  >
+                    Study Today
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleBatchArchive}
+                    className="bg-muted flex items-center justify-center px-4 py-1.5 rounded-[31px] text-[13px] font-medium text-card-foreground/60 transition-opacity hover:opacity-90"
+                  >
+                    Archive
+                  </button>
+                </>
+              )}
+            </div>
+          )}
         </div>
 
         {[...groupedTopics.entries()].map(([groupLabel, topicList]) => (
