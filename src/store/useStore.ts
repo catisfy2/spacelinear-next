@@ -71,7 +71,11 @@ interface AppState {
   deleteResource: (resourceId: string) => Promise<void>;
   refreshTopicFromDb: (topicId: string) => Promise<void>;
   scheduleTopicForToday: (topicId: string) => Promise<void>;
+  scheduleTopicForDate: (topicId: string, date: string) => Promise<void>;
   moveToBacklog: (topicId: string) => Promise<void>;
+  getTopicsForDate: (date: Date) => Topic[];
+  getTopicsForDateRange: (startDate: Date, endDate: Date) => Topic[];
+  getScheduledCounts: () => { date: string; count: number }[];
 
   // Notes
   notes: Note[];
@@ -550,6 +554,56 @@ export const useStore = create<AppState>()((set, get) => ({
     }));
   },
 
+  scheduleTopicForDate: async (topicId: string, date: string) => {
+    await supabase
+      .from("topics")
+      .update({ state: "new", next_review_date: date })
+      .eq("id", topicId);
+
+    set((s) => ({
+      topics: s.topics.map((t) =>
+        t.id === topicId
+          ? { ...t, state: "new" as const, nextReviewDate: date }
+          : t,
+      ),
+    }));
+  },
+
+  getTopicsForDate: (date: Date) => {
+    const start = new Date(date);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(start);
+    end.setDate(end.getDate() + 1);
+    return get().topics.filter((t) => {
+      if (t.state === "backlog") return false;
+      const d = new Date(t.nextReviewDate);
+      d.setHours(0, 0, 0, 0);
+      return d >= start && d < end;
+    });
+  },
+
+  getTopicsForDateRange: (startDate: Date, endDate: Date) => {
+    const start = new Date(startDate);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(endDate);
+    end.setHours(23, 59, 59, 999);
+    return get().topics.filter((t) => {
+      if (t.state === "backlog") return false;
+      const d = new Date(t.nextReviewDate);
+      return d >= start && d <= end;
+    });
+  },
+
+  getScheduledCounts: () => {
+    const counts: Record<string, number> = {};
+    for (const t of get().topics) {
+      if (t.state === "backlog") continue;
+      const key = new Date(t.nextReviewDate).toDateString();
+      counts[key] = (counts[key] || 0) + 1;
+    }
+    return Object.entries(counts).map(([date, count]) => ({ date, count }));
+  },
+
   // ── Notes ────────────────────────────────────────────────────────────
 
   fetchNotes: async (userId) => {
@@ -759,7 +813,10 @@ export const useStore = create<AppState>()((set, get) => ({
   renameMaterial: async (id, name) => {
     const oldMaterial = get().materials.find((m) => m.id === id);
 
-    const { error: matError } = await supabase.from("materials").update({ name }).eq("id", id);
+    const { error: matError } = await supabase
+      .from("materials")
+      .update({ name })
+      .eq("id", id);
     if (matError) throw matError;
     set((s) => ({
       materials: s.materials.map((m) => (m.id === id ? { ...m, name } : m)),

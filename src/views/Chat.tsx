@@ -7,6 +7,7 @@ import { useStore } from "@/store/useStore";
 import { supabase } from "@/integrations/supabase/client";
 import type { Conversation, Message } from "@/lib/types";
 import { PageShell } from "@/components/app/PageShell";
+import { toast } from "sonner";
 import { SuggestionCards } from "@/components/chat/SuggestionCards";
 import { ChatInput } from "@/components/chat/ChatInput";
 import { MessageBubble } from "@/components/chat/MessageBubble";
@@ -14,7 +15,7 @@ import { useChatStore } from "@/hooks/useChatStore";
 
 export function ChatPage() {
   const { user } = useAuth();
-  const { topics, subjects } = useStore();
+  const { topics, subjects, uploadFile } = useStore();
   const searchParams = useSearchParams();
   const conversationParam = searchParams.get("conversation");
 
@@ -252,6 +253,25 @@ export function ChatPage() {
     [user, activeConversationId, conversations, messages, isStreaming],
   );
 
+  const handleAttach = useCallback(
+    async (file: File) => {
+      if (!user) return;
+      try {
+        // Upload as a study material — this also triggers quiz generation
+        const material = await uploadFile(file, null, user.id);
+        toast.success(`Uploaded "${file.name}"`);
+
+        // Send a message to the AI agent to create a quiz set from the material
+        const message = `I've uploaded a study material called "${material.name}". Please analyze it and create a quiz set based on its content to help me study.`;
+        handleSend(message);
+      } catch (err) {
+        console.error("Upload failed:", err);
+        toast.error("Failed to upload file");
+      }
+    },
+    [user, uploadFile, handleSend],
+  );
+
   // Prefill message from ?q= query param
   const qParam = searchParams.get("q");
   const qSent = useRef(false);
@@ -324,6 +344,7 @@ export function ChatPage() {
           <ChatInput
             ref={inputRef}
             onSend={handleSend}
+            onAttach={handleAttach}
             isStreaming={isStreaming}
           />
         </PageShell>

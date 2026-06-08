@@ -1,7 +1,7 @@
 "use client";
 
 import { forwardRef, useState, useRef, useEffect, useCallback } from "react";
-import { ArrowUp, Mic, MicOff, Plus } from "lucide-react";
+import { ArrowUp, Mic, MicOff, Plus, Paperclip, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CommandMenu } from "@/components/chat/CommandMenu";
 import { MentionMenu } from "@/components/chat/MentionMenu";
@@ -12,11 +12,12 @@ import type { Resource } from "@/lib/types";
 
 interface ChatInputProps {
   onSend: (content: string) => void;
+  onAttach?: (file: File) => void;
   isStreaming: boolean;
 }
 
 export const ChatInput = forwardRef<HTMLTextAreaElement, ChatInputProps>(
-  function ChatInput({ onSend, isStreaming }, ref) {
+  function ChatInput({ onSend, onAttach, isStreaming }, ref) {
     const { user } = useAuth();
     const [value, setValue] = useState("");
     const {
@@ -31,6 +32,8 @@ export const ChatInput = forwardRef<HTMLTextAreaElement, ChatInputProps>(
       resetTranscript: sttReset,
     } = useSpeechToText();
     const [showCommands, setShowCommands] = useState(false);
+    const [attaching, setAttaching] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
     const [showMentions, setShowMentions] = useState(false);
     const [mentionQuery, setMentionQuery] = useState("");
     const [mentionItems, setMentionItems] = useState<
@@ -240,6 +243,25 @@ export const ChatInput = forwardRef<HTMLTextAreaElement, ChatInputProps>(
           </div>
         )}
 
+        {/* ── Hidden file input ── */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*,.pdf,.doc,.docx,.txt,.md,.csv"
+          className="hidden"
+          onChange={async (e) => {
+            const file = e.target.files?.[0];
+            if (!file || !onAttach) return;
+            setAttaching(true);
+            try {
+              await onAttach(file);
+            } finally {
+              setAttaching(false);
+              if (fileInputRef.current) fileInputRef.current.value = "";
+            }
+          }}
+        />
+
         {/* ── Mention Menu ── */}
         {showMentions && (
           <div ref={mentionsRef} className="absolute bottom-full left-0 mb-2">
@@ -265,6 +287,26 @@ export const ChatInput = forwardRef<HTMLTextAreaElement, ChatInputProps>(
             aria-label="Commands"
           >
             <Plus className="h-4 w-4" />
+          </button>
+
+          {/* ── Attachment button ── */}
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isStreaming || attaching}
+            className={cn(
+              "mb-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg transition-colors",
+              "text-muted-foreground hover:bg-accent/50 hover:text-foreground",
+              (isStreaming || attaching) && "opacity-40 cursor-not-allowed",
+            )}
+            aria-label="Attach file"
+            title="Upload a study material"
+          >
+            {attaching ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Paperclip className="h-4 w-4" />
+            )}
           </button>
 
           {/* ── Speech-to-Text button ── */}

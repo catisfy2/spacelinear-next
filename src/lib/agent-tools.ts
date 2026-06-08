@@ -129,6 +129,16 @@ async function executeAction(
       return createQuizQuestions(userId, params);
     case "createQuizSet":
       return createQuizSet(client, userId, params);
+    case "deleteSubject":
+      return deleteSubject(client, userId, params);
+    case "deleteTopic":
+      return deleteTopic(client, userId, params);
+    case "deleteNote":
+      return deleteNote(client, userId, params);
+    case "deleteMaterial":
+      return deleteMaterial(client, userId, params);
+    case "deleteQuizSet":
+      return deleteQuizSet(client, userId, params);
     default:
       return {
         success: false,
@@ -571,5 +581,269 @@ async function createQuizQuestions(
     action: "createQuizQuestions",
     message: `Created ${data.length} quiz question(s)`,
     data: { count: data.length },
+  };
+}
+
+// ── Delete Actions ─────────────────────────────────────────────────────────
+
+async function deleteSubject(
+  client: SupabaseClient<Database>,
+  userId: string,
+  params: Record<string, unknown>,
+): Promise<ActionResult> {
+  const name = (params.name as string)?.trim();
+  if (!name) {
+    return {
+      success: false,
+      action: "deleteSubject",
+      message: "Subject name is required",
+    };
+  }
+
+  // Find the subject by name
+  const { data: subjects } = await client
+    .from("subjects")
+    .select("id, name")
+    .eq("user_id", userId)
+    .ilike("name", name);
+
+  if (!subjects || subjects.length === 0) {
+    return {
+      success: false,
+      action: "deleteSubject",
+      message: `Subject "${name}" not found`,
+    };
+  }
+
+  const subjectId = subjects[0].id;
+  const subjectName = subjects[0].name;
+
+  // Delete all topics under this subject first
+  await client
+    .from("review_history")
+    .delete()
+    .eq("user_id", userId)
+    .in(
+      "topic_id",
+      (
+        await client.from("topics").select("id").eq("subject_id", subjectId)
+      ).data?.map((t) => t.id) ?? [],
+    );
+  await client.from("topics").delete().eq("subject_id", subjectId);
+  // Delete the subject
+  await client.from("subjects").delete().eq("id", subjectId);
+
+  return {
+    success: true,
+    action: "deleteSubject",
+    message: `Deleted subject "${subjectName}" and all its topics`,
+    data: { name: subjectName },
+  };
+}
+
+async function deleteTopic(
+  client: SupabaseClient<Database>,
+  userId: string,
+  params: Record<string, unknown>,
+): Promise<ActionResult> {
+  const title = (params.title as string)?.trim();
+  const subjectName = (params.subjectName as string)?.trim();
+
+  if (!title) {
+    return {
+      success: false,
+      action: "deleteTopic",
+      message: "Topic title is required",
+    };
+  }
+
+  // Build query to find the topic
+  let query = client
+    .from("topics")
+    .select("id, title")
+    .eq("user_id", userId)
+    .ilike("title", title);
+
+  if (subjectName) {
+    // Find the subject first
+    const { data: subjects } = await client
+      .from("subjects")
+      .select("id")
+      .eq("user_id", userId)
+      .ilike("name", subjectName);
+    if (subjects && subjects.length > 0) {
+      query = query.eq("subject_id", subjects[0].id);
+    }
+  }
+
+  const { data: topics } = await query;
+
+  if (!topics || topics.length === 0) {
+    return {
+      success: false,
+      action: "deleteTopic",
+      message: `Topic "${title}" not found`,
+    };
+  }
+
+  const topicId = topics[0].id;
+  const topicTitle = topics[0].title;
+
+  // Delete review history and topic
+  await client.from("review_history").delete().eq("topic_id", topicId);
+  await client.from("topics").delete().eq("id", topicId);
+
+  return {
+    success: true,
+    action: "deleteTopic",
+    message: `Deleted topic "${topicTitle}"`,
+    data: { title: topicTitle },
+  };
+}
+
+async function deleteNote(
+  client: SupabaseClient<Database>,
+  userId: string,
+  params: Record<string, unknown>,
+): Promise<ActionResult> {
+  const title = (params.title as string)?.trim();
+
+  if (!title) {
+    return {
+      success: false,
+      action: "deleteNote",
+      message: "Note title is required",
+    };
+  }
+
+  // Find the note by title
+  const { data: notes } = await client
+    .from("notes")
+    .select("id, title")
+    .eq("user_id", userId)
+    .is("deleted_at", null)
+    .ilike("title", title);
+
+  if (!notes || notes.length === 0) {
+    return {
+      success: false,
+      action: "deleteNote",
+      message: `Note "${title}" not found`,
+    };
+  }
+
+  const noteId = notes[0].id;
+  const noteTitle = notes[0].title;
+
+  // Soft delete
+  const now = new Date().toISOString();
+  await client
+    .from("notes")
+    .update({ deleted_at: now, updated_at: now })
+    .eq("id", noteId);
+
+  return {
+    success: true,
+    action: "deleteNote",
+    message: `Deleted note "${noteTitle}"`,
+    data: { title: noteTitle },
+  };
+}
+
+async function deleteMaterial(
+  client: SupabaseClient<Database>,
+  userId: string,
+  params: Record<string, unknown>,
+): Promise<ActionResult> {
+  const name = (params.name as string)?.trim();
+
+  if (!name) {
+    return {
+      success: false,
+      action: "deleteMaterial",
+      message: "Material name is required",
+    };
+  }
+
+  // Find the material by name
+  const { data: materials } = await client
+    .from("materials")
+    .select("id, name")
+    .eq("user_id", userId)
+    .is("deleted_at", null)
+    .ilike("name", name);
+
+  if (!materials || materials.length === 0) {
+    return {
+      success: false,
+      action: "deleteMaterial",
+      message: `Material "${name}" not found`,
+    };
+  }
+
+  const materialId = materials[0].id;
+  const materialName = materials[0].name;
+
+  // Soft delete
+  await client
+    .from("materials")
+    .update({ deleted_at: new Date().toISOString() })
+    .eq("id", materialId);
+
+  return {
+    success: true,
+    action: "deleteMaterial",
+    message: `Deleted material "${materialName}"`,
+    data: { name: materialName },
+  };
+}
+
+async function deleteQuizSet(
+  client: SupabaseClient<Database>,
+  userId: string,
+  params: Record<string, unknown>,
+): Promise<ActionResult> {
+  const title = (params.title as string)?.trim();
+
+  if (!title) {
+    return {
+      success: false,
+      action: "deleteQuizSet",
+      message: "Quiz set title is required",
+    };
+  }
+
+  const adminClient = getSupabaseAdmin();
+
+  // Find the quiz set by title
+  const { data: sets } = await (adminClient as any)
+    .from("question_sets")
+    .select("id, title")
+    .eq("user_id", userId)
+    .ilike("title", title);
+
+  if (!sets || sets.length === 0) {
+    return {
+      success: false,
+      action: "deleteQuizSet",
+      message: `Quiz set "${title}" not found`,
+    };
+  }
+
+  const setId = sets[0].id;
+  const setTitle = sets[0].title;
+
+  // Delete questions first, then the set
+  await (adminClient as any)
+    .from("questions")
+    .delete()
+    .eq("question_set_id", setId);
+  await (adminClient as any).from("question_sets").delete().eq("id", setId);
+
+  return {
+    success: true,
+    action: "deleteQuizSet",
+    message: `Deleted quiz set "${setTitle}" and all its questions`,
+    data: { title: setTitle },
   };
 }
