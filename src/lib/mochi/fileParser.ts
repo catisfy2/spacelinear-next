@@ -1,6 +1,3 @@
-import mammoth from "mammoth";
-import { PDFParse } from "pdf-parse";
-
 interface FileParseResult {
   text: string;
   pageCount?: number;
@@ -14,6 +11,13 @@ export async function parseFile(
 
   switch (ext) {
     case "pdf": {
+      if (process.env.VERCEL) {
+        throw new Error(
+          "PDF attachments are not supported on this deployment runtime yet.",
+        );
+      }
+
+      const { PDFParse } = await import("pdf-parse");
       const parser = new PDFParse({ data: buffer });
       const [textResult, infoResult] = await Promise.all([
         parser.getText(),
@@ -22,6 +26,7 @@ export async function parseFile(
       return { text: textResult.text, pageCount: infoResult.total };
     }
     case "docx": {
+      const mammoth = (await import("mammoth")).default;
       const result = await mammoth.extractRawText({ buffer });
       return { text: result.value };
     }
