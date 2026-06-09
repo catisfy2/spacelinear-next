@@ -6,6 +6,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import type { Topic, Subject } from "@/lib/types";
 import { DraggableTopicItem } from "./DraggableTopicItem";
+import { SubjectIcon } from "@/components/subjects/SubjectIcon";
 
 // ── Group topics by subject for display ────────────────────────────────
 
@@ -136,7 +137,7 @@ export function BacklogSidebar({ topics, subjects }: BacklogSidebarProps) {
             {groups.map(({ subject, topics: groupTopics }) => (
               <div key={subject.id} className="mb-3 last:mb-0">
                 <p className="mb-1 px-2 text-xs font-medium text-muted-foreground">
-                  {subject.icon} {subject.name}
+                  <SubjectIcon name={subject.icon} size={12} /> {subject.name}
                 </p>
                 <div className="space-y-0.5">
                   {groupTopics.map((topic) => (

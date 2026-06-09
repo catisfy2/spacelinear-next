@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
+import { useAuth } from "@/hooks/useAuth";
 import { useStore } from "@/store/useStore";
 import { PageShell } from "@/components/app/PageShell";
 import { PageHeader } from "@/components/app/PageHeader";
@@ -220,7 +221,14 @@ function ScheduleTopicRow({
 // ── Main Schedule Page ───────────────────────────────────────────────────
 
 export function SchedulePage() {
-  const { topics, subjects, scheduleTopicForDate, moveToBacklog } = useStore();
+  const { user } = useAuth();
+  const { topics, subjects, scheduleTopicForDate, moveToBacklog, refreshAll } =
+    useStore();
+
+  // Refresh data on mount so agent-created items appear immediately
+  useEffect(() => {
+    if (user) refreshAll(user.id);
+  }, [user, refreshAll]);
 
   const [currentWeek, setCurrentWeek] = useState(() => getMonday(new Date()));
   const [selectedDate, setSelectedDate] = useState(new Date());

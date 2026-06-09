@@ -5,6 +5,7 @@ import type { Difficulty, Topic, Subject } from "@/lib/types";
 import { DIFFICULTY_CONFIG } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { SubjectIcon } from "@/components/subjects/SubjectIcon";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -55,7 +56,8 @@ export function ReviewDialog({
   onClose: () => void;
   onCommit: (difficulty: Difficulty, commitMessage?: string) => void;
 }) {
-  const [selectedDifficulty, setSelectedDifficulty] = useState<Difficulty | null>(null);
+  const [selectedDifficulty, setSelectedDifficulty] =
+    useState<Difficulty | null>(null);
   const [commitMessage, setCommitMessage] = useState("");
 
   const handleCommit = () => {
@@ -68,14 +70,22 @@ export function ReviewDialog({
   const difficulties = Object.keys(DIFFICULTY_CONFIG) as Difficulty[];
 
   return (
-    <AlertDialog open={open} onOpenChange={(open) => { if (!open) onClose(); }}>
+    <AlertDialog
+      open={open}
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+    >
       <AlertDialogContent className="max-w-sm">
         <AlertDialogHeader>
-          <AlertDialogTitle className="text-base">Rate your recall</AlertDialogTitle>
+          <AlertDialogTitle className="text-base">
+            Rate your recall
+          </AlertDialogTitle>
           <AlertDialogDescription className="text-xs">
             {subject && (
               <span className="text-muted-foreground">
-                {subject.icon} {subject.name} &mdash;{" "}
+                <SubjectIcon name={subject.icon} size={12} /> {subject.name}{" "}
+                &mdash;
               </span>
             )}
             <span className="font-medium text-foreground">{topic.title}</span>

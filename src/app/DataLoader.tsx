@@ -3,7 +3,6 @@
 import { useAuth } from "@/hooks/useAuth";
 import { useStore } from "@/store/useStore";
 import { useEffect, useRef, type ReactNode } from "react";
-import { Loader2 } from "lucide-react";
 
 export function DataLoader({ children }: { children: ReactNode }) {
   const { user } = useAuth();
@@ -13,6 +12,7 @@ export function DataLoader({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (user && user.id !== prevUserId.current) {
       prevUserId.current = user.id;
+      // Fire data fetch but don't block rendering
       fetchAll(user.id);
     } else if (!user && prevUserId.current) {
       prevUserId.current = null;
@@ -20,13 +20,7 @@ export function DataLoader({ children }: { children: ReactNode }) {
     }
   }, [user, fetchAll, clear]);
 
-  if (user && loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="w-6 h-6 animate-spin text-primary" />
-      </div>
-    );
-  }
-
+  // Always render children immediately — no full-page spinner.
+  // Individual pages handle their own empty/loading states.
   return <>{children}</>;
 }

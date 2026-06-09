@@ -11,23 +11,19 @@ interface MentionItem {
 interface MentionMenuProps {
   items: MentionItem[];
   query: string;
-  onSelect: (action: string) => void;
+  onSelect: (action: string, label?: string) => void;
 }
 
 export function MentionMenu({ items, query, onSelect }: MentionMenuProps) {
   const filtered = query
-    ? items.filter((i) =>
-        i.label.toLowerCase().includes(query.toLowerCase()),
-      )
+    ? items.filter((i) => i.label.toLowerCase().includes(query.toLowerCase()))
     : items;
 
   if (filtered.length === 0 && !query) {
     return (
       <div className="w-56 overflow-hidden rounded-xl border border-border bg-popover shadow-xl">
         <div className="border-b border-border px-3 py-2">
-          <p className="text-xs font-medium text-muted-foreground">
-            Mentions
-          </p>
+          <p className="text-xs font-medium text-muted-foreground">Mentions</p>
         </div>
         <div className="px-3 py-6 text-center text-xs text-muted-foreground">
           No materials or notes yet. Start typing to search.
@@ -40,9 +36,7 @@ export function MentionMenu({ items, query, onSelect }: MentionMenuProps) {
     return (
       <div className="w-56 overflow-hidden rounded-xl border border-border bg-popover shadow-xl">
         <div className="border-b border-border px-3 py-2">
-          <p className="text-xs font-medium text-muted-foreground">
-            Mentions
-          </p>
+          <p className="text-xs font-medium text-muted-foreground">Mentions</p>
         </div>
         <div className="px-3 py-6 text-center text-xs text-muted-foreground">
           No results for &ldquo;{query}&rdquo;
@@ -54,11 +48,12 @@ export function MentionMenu({ items, query, onSelect }: MentionMenuProps) {
   // Group items by type
   const groups = new Map<string, MentionItem[]>();
   for (const item of filtered) {
-    const key = item.type === "material"
-      ? "Materials"
-      : item.type === "note"
-        ? "Notes"
-        : "Agents";
+    const key =
+      item.type === "material"
+        ? "Materials"
+        : item.type === "note"
+          ? "Notes"
+          : "Agents";
     const list = groups.get(key) ?? [];
     list.push(item);
     groups.set(key, list);
@@ -86,7 +81,7 @@ export function MentionMenu({ items, query, onSelect }: MentionMenuProps) {
                 <button
                   key={`${item.label}-${i}`}
                   type="button"
-                  onClick={() => onSelect(item.action)}
+                  onClick={() => onSelect(item.action, item.label)}
                   className="flex w-full items-center gap-3 px-3 py-2 text-left text-sm transition-colors hover:bg-accent"
                 >
                   <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted">

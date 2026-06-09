@@ -10,6 +10,13 @@ import { PageShell } from "@/components/app/PageShell";
 import { toast } from "sonner";
 import { SuggestionCards } from "@/components/chat/SuggestionCards";
 import { ChatInput } from "@/components/chat/ChatInput";
+import { NewSubjectDialog } from "@/components/chat/NewSubjectDialog";
+import { NewTopicDialog } from "@/components/chat/NewTopicDialog";
+import { NewNoteDialog } from "@/components/chat/NewNoteDialog";
+import { NewQuizDialog } from "@/components/chat/NewQuizDialog";
+import { StudyModeDialog } from "@/components/chat/StudyModeDialog";
+import { StudyPlanDialog } from "@/components/chat/StudyPlanDialog";
+import { StudyModeOverlay } from "@/components/study-mode";
 import { MessageBubble } from "@/components/chat/MessageBubble";
 import { useChatStore } from "@/hooks/useChatStore";
 
@@ -34,6 +41,13 @@ export function ChatPage() {
   const [isStreaming, setIsStreaming] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [initialLoadDone, setInitialLoadDone] = useState(false);
+  const [showNewSubjectDialog, setShowNewSubjectDialog] = useState(false);
+  const [showNewTopicDialog, setShowNewTopicDialog] = useState(false);
+  const [showNewNoteDialog, setShowNewNoteDialog] = useState(false);
+  const [showNewQuizDialog, setShowNewQuizDialog] = useState(false);
+  const [showStudyModeDialog, setShowStudyModeDialog] = useState(false);
+  const [showStudyPlanDialog, setShowStudyPlanDialog] = useState(false);
+  const [studyModeMinutes, setStudyModeMinutes] = useState<number | null>(null);
 
   // Fetch conversations on mount
   useEffect(() => {
@@ -262,7 +276,7 @@ export function ChatPage() {
         toast.success(`Uploaded "${file.name}"`);
 
         // Send a message to the AI agent to create a quiz set from the material
-        const message = `I've uploaded a study material called "${material.name}". Please analyze it and create a quiz set based on its content to help me study.`;
+        const message = `I've uploaded a study material called "${material.name}". Please analyze it and create a quiz set with 10 questions based on its content to help me study.`;
         handleSend(message);
       } catch (err) {
         console.error("Upload failed:", err);
@@ -293,8 +307,129 @@ export function ChatPage() {
     [handleSend],
   );
 
+  // Called after the study mode dialog — starts the focus session
+  const handleStudyModeStart = useCallback((minutes: number) => {
+    setStudyModeMinutes(minutes);
+  }, []);
+
+  // Called after the study plan dialog — sends AI prompt with actual user data
+  const handleStudyPlanCreate = useCallback(
+    (scope: "today" | "upcoming", saveToNotes: boolean) => {
+      const scopeLabel =
+        scope === "today"
+          ? "for today only"
+          : "for today and the upcoming days";
+
+      // Build a compact list of the user's actual subjects and topics
+      const subjectList = subjects
+        .map((s) => {
+          const topicTitles = topics
+            .filter((t) => t.subjectId === s.id)
+            .map((t) => t.title);
+          const topicStr =
+            topicTitles.length > 0
+              ? ` — topics: ${topicTitles.join(", ")}`
+              : " — no topics yet";
+          return `- ${s.name}${topicStr}`;
+        })
+        .join("\n");
+
+      const studyDataContext =
+        subjects.length > 0
+          ? `\n\nHere are my actual subjects and topics that the plan should be based on:\n${subjectList}\n\n`
+          : "\n\nI don't have any subjects or topics set up yet. Please just give me general advice on how to structure my study time effectively based on best practices.\n\n";
+
+      const notesInstruction = saveToNotes
+        ? " After generating the plan, also save it as a note in my notes section with the title 'Study Plan - <date>' so I can reference it later."
+        : "";
+
+      const message = `I need a personalized study plan ${scopeLabel}.${studyDataContext}
+
+IMPORTANT RULES:
+- ONLY reference subjects and topics from the list above. Do NOT create, suggest, or invent any new subjects or topics.
+- If I don't have many subjects or topics yet, give me general study advice instead.
+- For each study session, suggest a specific focus area, how long to spend, and what learning activity to do (review notes, practice questions, active recall, etc.).
+- Format the plan with clear sections, time blocks, and actionable bullet points.
+- Be realistic — don't pack more than what can be reasonably accomplished.${notesInstruction}`;
+
+      handleSend(message);
+    },
+    [handleSend, subjects, topics],
+  );
+
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const hasMessages = messages.length > 0;
+
+  // Called after the subject dialog — triggers AI quiz generation
+  const handleSubjectCreated = useCallback(
+    (subjectName: string, topicTitles: string[]) => {
+      const topicsPart =
+        topicTitles.length > 0 ? ` with topics: ${topicTitles.join(", ")}` : "";
+      const message = `I just created a new subject called "${subjectName}"${topicsPart}. Please create a comprehensive 10-question quiz set covering the fundamentals of ${subjectName} to help me study.`;
+      handleSend(message);
+    },
+    [handleSend],
+  );
+
+  // Called after the topic dialog — triggers AI quiz generation
+  const handleTopicCreated = useCallback(
+    (topicTitle: string, subjectName: string) => {
+      const message = `I just created a new topic called "${topicTitle}" under "${subjectName}". Please create a comprehensive 10-question quiz set covering "${topicTitle}" to help me study this topic.`;
+      handleSend(message);
+    },
+    [handleSend],
+  );
+
+  // Called after the note dialog — triggers AI note generation
+  const handleNoteCreated = useCallback(
+    (noteTitle: string, contentType: string, customPrompt?: string) => {
+      const typeGuide =
+        contentType === "summary"
+          ? "a concise summary"
+          : contentType === "study_guide"
+            ? "a structured study guide"
+            : contentType === "cheat_sheet"
+              ? "a cheat sheet"
+              : contentType === "explanation"
+                ? "a detailed explanation"
+                : contentType === "flashcards"
+                  ? "flashcards (question-answer pairs)"
+                  : "content";
+      const customPart = customPrompt
+        ? ` Follow these instructions: ${customPrompt}`
+        : "";
+      const message = `I just created a new note called "${noteTitle}". Please generate ${typeGuide} for "${noteTitle}" and save it as the note content.${customPart}`;
+      handleSend(message);
+    },
+    [handleSend],
+  );
+
+  // Called after the quiz dialog — triggers AI quiz generation
+  const handleQuizCreated = useCallback(
+    (context: {
+      subjectName?: string;
+      topicName?: string;
+      noteNames: string[];
+      instructions?: string;
+    }) => {
+      const parts: string[] = [];
+      if (context.subjectName) parts.push(`subject "${context.subjectName}"`);
+      if (context.topicName) parts.push(`topic "${context.topicName}"`);
+      const scope = parts.length > 0 ? ` on ${parts.join(" and ")}` : "";
+
+      const notesPart =
+        context.noteNames.length > 0
+          ? ` Use these notes as reference: ${context.noteNames.join(", ")}.`
+          : "";
+      const instructionPart = context.instructions
+        ? ` ${context.instructions}`
+        : "";
+
+      const message = `Please create a quiz set${scope} with multiple-choice questions.${notesPart}${instructionPart} Create the quiz set using the createQuizSet action.`;
+      handleSend(message);
+    },
+    [handleSend],
+  );
 
   return (
     <div className="flex h-full flex-col">
@@ -331,6 +466,7 @@ export function ChatPage() {
               topics={topics}
               subjects={subjects}
               onSelect={handleSuggestionClick}
+              onShowStudyPlanDialog={() => setShowStudyPlanDialog(true)}
             />
           )}
 
@@ -345,10 +481,66 @@ export function ChatPage() {
             ref={inputRef}
             onSend={handleSend}
             onAttach={handleAttach}
+            onShowNewSubjectDialog={() => setShowNewSubjectDialog(true)}
+            onShowNewTopicDialog={() => setShowNewTopicDialog(true)}
+            onShowNewNoteDialog={() => setShowNewNoteDialog(true)}
+            onShowNewQuizDialog={() => setShowNewQuizDialog(true)}
+            onShowStudyModeDialog={() => setShowStudyModeDialog(true)}
+            onShowStudyPlanDialog={() => setShowStudyPlanDialog(true)}
             isStreaming={isStreaming}
           />
         </PageShell>
       </div>
+
+      {/* New Subject Dialog */}
+      <NewSubjectDialog
+        open={showNewSubjectDialog}
+        onOpenChange={setShowNewSubjectDialog}
+        onCreated={handleSubjectCreated}
+      />
+
+      {/* New Topic Dialog */}
+      <NewTopicDialog
+        open={showNewTopicDialog}
+        onOpenChange={setShowNewTopicDialog}
+        onCreated={handleTopicCreated}
+      />
+
+      {/* New Note Dialog */}
+      <NewNoteDialog
+        open={showNewNoteDialog}
+        onOpenChange={setShowNewNoteDialog}
+        onCreated={handleNoteCreated}
+      />
+
+      {/* New Quiz Dialog */}
+      <NewQuizDialog
+        open={showNewQuizDialog}
+        onOpenChange={setShowNewQuizDialog}
+        onCreated={handleQuizCreated}
+      />
+
+      {/* Study Mode Dialog */}
+      <StudyModeDialog
+        open={showStudyModeDialog}
+        onOpenChange={setShowStudyModeDialog}
+        onStart={handleStudyModeStart}
+      />
+
+      {/* Study Plan Dialog */}
+      <StudyPlanDialog
+        open={showStudyPlanDialog}
+        onOpenChange={setShowStudyPlanDialog}
+        onCreate={handleStudyPlanCreate}
+      />
+
+      {/* Study Mode Overlay */}
+      {studyModeMinutes != null && (
+        <StudyModeOverlay
+          minutes={studyModeMinutes}
+          onClose={() => setStudyModeMinutes(null)}
+        />
+      )}
     </div>
   );
 }

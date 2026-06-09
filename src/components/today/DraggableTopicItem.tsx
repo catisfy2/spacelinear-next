@@ -4,6 +4,7 @@ import { useDraggable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
 import { cn } from "@/lib/utils";
 import type { Topic, Subject } from "@/lib/types";
+import { SubjectIcon } from "@/components/subjects/SubjectIcon";
 
 interface DraggableTopicItemProps {
   topic: Topic;
@@ -59,7 +60,7 @@ export function DraggableTopicItem({
         </p>
         {subject && (
           <p className="mt-0.5 truncate text-xs text-muted-foreground">
-            {subject.icon} {subject.name}
+            <SubjectIcon name={subject.icon} size={12} /> {subject.name}
           </p>
         )}
       </div>

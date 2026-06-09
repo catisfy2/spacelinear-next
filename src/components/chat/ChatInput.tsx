@@ -3,7 +3,7 @@
 import { forwardRef, useState, useRef, useEffect, useCallback } from "react";
 import { ArrowUp, Mic, MicOff, Plus, Paperclip, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { CommandMenu } from "@/components/chat/CommandMenu";
+import { CommandMenu, type CommandType } from "@/components/chat/CommandMenu";
 import { MentionMenu } from "@/components/chat/MentionMenu";
 import { useSpeechToText } from "@/hooks/useSpeechToText";
 import { useAuth } from "@/hooks/useAuth";
@@ -13,11 +13,30 @@ import type { Resource } from "@/lib/types";
 interface ChatInputProps {
   onSend: (content: string) => void;
   onAttach?: (file: File) => void;
+  onShowNewSubjectDialog?: () => void;
+  onShowNewTopicDialog?: () => void;
+  onShowNewNoteDialog?: () => void;
+  onShowNewQuizDialog?: () => void;
+  onShowStudyModeDialog?: () => void;
+  onShowStudyPlanDialog?: () => void;
   isStreaming: boolean;
 }
 
 export const ChatInput = forwardRef<HTMLTextAreaElement, ChatInputProps>(
-  function ChatInput({ onSend, onAttach, isStreaming }, ref) {
+  function ChatInput(
+    {
+      onSend,
+      onAttach,
+      onShowNewSubjectDialog,
+      onShowNewTopicDialog,
+      onShowNewNoteDialog,
+      onShowNewQuizDialog,
+      onShowStudyModeDialog,
+      onShowStudyPlanDialog,
+      isStreaming,
+    },
+    ref,
+  ) {
     const { user } = useAuth();
     const [value, setValue] = useState("");
     const {
@@ -93,14 +112,53 @@ export const ChatInput = forwardRef<HTMLTextAreaElement, ChatInputProps>(
 
     // Handle slash commands
     const handleSlashCommand = useCallback(
-      (command: string) => {
+      (command: string, type: CommandType, href?: string) => {
         setShowCommands(false);
-        // Replace the slash with the command text
         const currentVal = value.replace(/\/\w*$/, "");
         setValue(currentVal);
-        onSend(command);
+
+        switch (type) {
+          case "upload":
+            fileInputRef.current?.click();
+            break;
+          case "navigate": {
+            const cmd = command.toLowerCase();
+            if (onShowStudyModeDialog && cmd.includes("study")) {
+              onShowStudyModeDialog();
+            } else if (href) {
+              window.location.href = href;
+            }
+            break;
+          }
+          case "agent": {
+            const cmd = command.toLowerCase();
+            if (onShowNewSubjectDialog && cmd.includes("new subject")) {
+              onShowNewSubjectDialog();
+            } else if (onShowNewTopicDialog && cmd.includes("new topic")) {
+              onShowNewTopicDialog();
+            } else if (onShowNewNoteDialog && cmd.includes("new note")) {
+              onShowNewNoteDialog();
+            } else if (onShowNewQuizDialog && cmd.includes("new quiz")) {
+              onShowNewQuizDialog();
+            } else if (onShowStudyPlanDialog && cmd.includes("study plan")) {
+              onShowStudyPlanDialog();
+            } else {
+              onSend(command);
+            }
+            break;
+          }
+        }
       },
-      [value, onSend],
+      [
+        value,
+        onSend,
+        onShowNewSubjectDialog,
+        onShowNewTopicDialog,
+        onShowNewNoteDialog,
+        onShowNewQuizDialog,
+        onShowStudyModeDialog,
+        onShowStudyPlanDialog,
+      ],
     );
 
     // Fetch mention items when query changes
@@ -158,6 +216,16 @@ export const ChatInput = forwardRef<HTMLTextAreaElement, ChatInputProps>(
           type: "agent",
           label: "✨ Study Material",
           action: "Create a study material or reference document for me.",
+        });
+        items.push({
+          type: "agent",
+          label: "⏱ Study Mode",
+          action: "Let's start a study session. Quiz me and help me learn.",
+        });
+        items.push({
+          type: "agent",
+          label: "📋 Study Plan",
+          action: "Help me create a study plan.",
         });
 
         // Add role agents
@@ -225,11 +293,39 @@ export const ChatInput = forwardRef<HTMLTextAreaElement, ChatInputProps>(
       }
     };
 
-    const handleMentionSelect = (action: string) => {
+    const handleMentionSelect = (action: string, label?: string) => {
       setShowMentions(false);
       // Replace the @mention text with the action context
       const currentVal = value.replace(/@\w*$/, "");
       setValue(currentVal);
+
+      // Intercept commands to show dialogs instead
+      const lbl = label?.toLowerCase() ?? "";
+      if (onShowNewSubjectDialog && lbl.includes("new subject")) {
+        onShowNewSubjectDialog();
+        return;
+      }
+      if (onShowNewTopicDialog && lbl.includes("new topic")) {
+        onShowNewTopicDialog();
+        return;
+      }
+      if (onShowNewNoteDialog && lbl.includes("new note")) {
+        onShowNewNoteDialog();
+        return;
+      }
+      if (onShowNewQuizDialog && lbl.includes("new quiz")) {
+        onShowNewQuizDialog();
+        return;
+      }
+      if (onShowStudyModeDialog && lbl.includes("study mode")) {
+        onShowStudyModeDialog();
+        return;
+      }
+      if (onShowStudyPlanDialog && lbl.includes("study plan")) {
+        onShowStudyPlanDialog();
+        return;
+      }
+
       // Send the action as a message
       onSend(action);
     };

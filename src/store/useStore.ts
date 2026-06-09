@@ -28,6 +28,8 @@ interface AppState {
   toggleSidebar: () => void;
   setSelectedSidebarTopicId: (id: string | null) => void;
   fetchAll: (userId: string) => Promise<void>;
+  refreshAll: (userId: string) => Promise<void>;
+  fetchReviewHistory: (userId: string, limit?: number) => Promise<void>;
   clear: () => void;
   addSubject: (
     subject: Omit<Subject, "id" | "createdAt">,
@@ -263,17 +265,41 @@ export const useStore = create<AppState>()((set, get) => ({
 
   fetchAll: async (userId: string) => {
     set({ loading: true });
-    const [subjectsRes, topicsRes, historyRes] = await Promise.all([
+    try {
+      const [subjectsRes, topicsRes] = await Promise.all([
+        supabase.from("subjects").select("*").eq("user_id", userId),
+        supabase.from("topics").select("*").eq("user_id", userId),
+      ]);
+      set({
+        subjects: (subjectsRes.data ?? []).map(mapSubjectRow),
+        topics: (topicsRes.data ?? []).map(mapTopicRow),
+      });
+    } catch (err) {
+      console.error("fetchAll failed:", err);
+    } finally {
+      set({ loading: false });
+    }
+  },
+
+  refreshAll: async (userId: string) => {
+    const [subjectsRes, topicsRes] = await Promise.all([
       supabase.from("subjects").select("*").eq("user_id", userId),
       supabase.from("topics").select("*").eq("user_id", userId),
-      supabase.from("review_history").select("*").eq("user_id", userId),
     ]);
     set({
       subjects: (subjectsRes.data ?? []).map(mapSubjectRow),
       topics: (topicsRes.data ?? []).map(mapTopicRow),
-      reviewHistory: (historyRes.data ?? []).map(mapHistoryRow),
-      loading: false,
     });
+  },
+
+  fetchReviewHistory: async (userId: string, limit = 100) => {
+    const { data } = await supabase
+      .from("review_history")
+      .select("*")
+      .eq("user_id", userId)
+      .order("reviewed_at", { ascending: false })
+      .limit(limit);
+    set({ reviewHistory: (data ?? []).map(mapHistoryRow) });
   },
 
   clear: () =>

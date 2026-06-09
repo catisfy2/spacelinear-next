@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useSidebar } from "@/components/ui/sidebar";
 import { StudyModeOverlay } from "@/components/study-mode";
 import { IconToolCreate, IconToolStudy, IconToolNote } from "./SidebarIcons";
@@ -10,6 +11,7 @@ interface SidebarToolbarProps {
 }
 
 export function SidebarToolbar({ onOpenCreateTopic }: SidebarToolbarProps) {
+  const router = useRouter();
   const { state } = useSidebar();
   const isCollapsed = state === "collapsed";
   const [showStudy, setShowStudy] = useState(false);
@@ -46,12 +48,12 @@ export function SidebarToolbar({ onOpenCreateTopic }: SidebarToolbarProps) {
           <IconToolStudy className="size-[16px] group-data-[collapsible=icon]:size-[18px] text-sidebar-accent-foreground" />
         </button>
 
-        {/* Tool 3 — Note Sidebar (no-op) */}
+        {/* Tool 3 — Note Sidebar */}
         <button
           type="button"
           className="bg-accent flex flex-1 h-[40px] items-center justify-center min-w-px overflow-clip rounded-[7px] hover:bg-sidebar-foreground/10 transition-colors"
           aria-label="Note sidebar"
-          onClick={() => {}}
+          onClick={() => router.push("/notes")}
         >
           <IconToolNote className="size-[16px] group-data-[collapsible=icon]:size-[18px] text-sidebar-accent-foreground" />
         </button>

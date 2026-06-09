@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { format } from "date-fns";
-import { toast } from "sonner";
+import { useAuth } from "@/hooks/useAuth";
 import { useStore } from "@/store/useStore";
 import type { Topic } from "@/lib/types";
 import { TopicRow } from "@/components/app/TopicRow";
@@ -39,7 +40,14 @@ function getDateLabel(dateStr: string): string {
 }
 
 export function TopicsPage() {
-  const { topics, subjects } = useStore();
+  const router = useRouter();
+  const { user } = useAuth();
+  const { topics, subjects, refreshAll } = useStore();
+
+  // Refresh data on mount so agent-created items appear immediately
+  useEffect(() => {
+    if (user) refreshAll(user.id);
+  }, [user, refreshAll]);
 
   const [activePill, setActivePill] = useState<PillMode>("date");
   const [selectedTopicIds, setSelectedTopicIds] = useState<Set<string>>(
@@ -56,11 +64,14 @@ export function TopicsPage() {
     });
   }, []);
 
-  const handleToggleChange = useCallback((mode: ToggleMode) => {
-    if (mode === "subjects") {
-      toast("Subjects view is under development");
-    }
-  }, []);
+  const handleToggleChange = useCallback(
+    (mode: ToggleMode) => {
+      if (mode === "subjects") {
+        router.push("/subjects");
+      }
+    },
+    [router],
+  );
 
   const handlePillChange = useCallback((pill: PillMode) => {
     setActivePill(pill);

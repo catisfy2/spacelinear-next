@@ -27,13 +27,22 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { TopicActionsMenu } from "@/components/topics/TopicActionsMenu";
+import { SubjectIcon } from "@/components/subjects/SubjectIcon";
 
 export function TopicPage() {
   const params = useParams();
   const id = params?.id as string | undefined;
   const router = useRouter();
-  const { topics, subjects, reviewHistory, submitReview } = useStore();
+  const { topics, subjects, reviewHistory, fetchReviewHistory, submitReview } =
+    useStore();
   const { user } = useAuth();
+
+  // Lazy-load review history when this page mounts
+  useEffect(() => {
+    if (user) {
+      fetchReviewHistory(user.id);
+    }
+  }, [user, fetchReviewHistory]);
 
   const [sidebarWidth, setSidebarWidth] = useState(320);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(
@@ -325,7 +334,7 @@ export function TopicPage() {
                     href={`/subjects/${subject.id}`}
                     className="flex items-center gap-1 hover:text-foreground transition-colors"
                   >
-                    <span>{subject.icon}</span>
+                    <SubjectIcon name={subject.icon} size={14} />
                     <span>{subject.name}</span>
                   </Link>
                 </>

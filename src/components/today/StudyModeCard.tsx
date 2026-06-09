@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { Plus, Minus, Clock } from "lucide-react";
+import { Plus, Minus, Clock, MessageCircle, Sparkles } from "lucide-react";
 import { StudyModeOverlay } from "@/components/study-mode";
 
 const TIMER_VALUES = [15, 30, 45, 60, 70, 80, 90];
@@ -39,51 +39,65 @@ export function StudyModeCard() {
           onClose={() => setShowOverlay(false)}
         />
       )}
-      <div className="relative flex w-full shrink-0 flex-col items-center gap-[10px] overflow-clip rounded-[14px] bg-card px-[13px] py-[10px] shadow-[inset_0px_10px_13.6px_-14px_hsl(var(--primary)),inset_0px_-6px_32.2px_-14px_hsl(var(--primary))]">
-        <div className="flex items-center gap-[10px]">
-          <div className="size-[50px] shrink-0 overflow-clip rounded-[8px] bg-muted">
-            <img
-              alt=""
-              src="/assets/today/study-mode.png"
-              className="size-full object-cover"
-            />
-          </div>
-          <div className="flex flex-col items-center gap-[4px]">
-            <div className="flex items-center gap-[8px]">
-              <button
-                type="button"
-                onClick={handleDecrease}
-                className="size-[14px] text-foreground"
-                aria-label="Decrease time"
-              >
-                <Minus className="size-full" />
-              </button>
-              <div className="flex items-center gap-[4px]">
-                <Clock className="size-[14px] text-foreground" />
-                <p className="text-[18px] font-medium text-foreground">
-                  {minutes} Min
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={handleIncrease}
-                className="size-[14px] text-foreground"
-                aria-label="Increase time"
-              >
-                <Plus className="size-full" />
-              </button>
-            </div>
-            <button
-              type="button"
-              onClick={handleStart}
-              className="flex w-full items-center justify-center px-[10px] py-[4px] opacity-70"
-            >
-              <p className="text-[14px] font-medium text-foreground">
-                Start Study Mode
-              </p>
-            </button>
-          </div>
+      <div className="relative flex w-full shrink-0 flex-col items-center gap-3 overflow-clip rounded-[14px] bg-card px-5 py-4 shadow-[inset_0px_10px_13.6px_-14px_hsl(var(--primary)),inset_0px_-6px_32.2px_-14px_hsl(var(--primary))]">
+        {/* Image */}
+        <div className="size-[72px] shrink-0 overflow-clip rounded-[10px] bg-muted">
+          <img
+            alt=""
+            src="/assets/today/study-mode.png"
+            className="size-full object-cover"
+          />
         </div>
+
+        {/* Label */}
+        <div className="flex items-center gap-1.5">
+          <Sparkles className="size-3.5 text-primary" />
+          <p className="text-xs font-medium text-primary/80 uppercase tracking-wider">
+            Study Buddy
+          </p>
+        </div>
+
+        {/* Description */}
+        <p className="text-center text-[13px] text-muted-foreground leading-snug max-w-[200px]">
+          Focus with a timer and get help from your AI study buddy.
+        </p>
+
+        {/* Timer controls */}
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={handleDecrease}
+            className="flex size-[22px] items-center justify-center rounded-full border border-border text-foreground hover:bg-accent transition-colors"
+            aria-label="Decrease time"
+          >
+            <Minus className="size-3" />
+          </button>
+          <div className="flex items-center gap-2 min-w-[90px] justify-center">
+            <Clock className="size-4 text-foreground" />
+            <p className="text-[22px] font-semibold text-foreground tracking-tight">
+              {minutes}
+            </p>
+            <p className="text-[13px] text-muted-foreground">min</p>
+          </div>
+          <button
+            type="button"
+            onClick={handleIncrease}
+            className="flex size-[22px] items-center justify-center rounded-full border border-border text-foreground hover:bg-accent transition-colors"
+            aria-label="Increase time"
+          >
+            <Plus className="size-3" />
+          </button>
+        </div>
+
+        {/* Start button */}
+        <button
+          type="button"
+          onClick={handleStart}
+          className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary/10 px-4 py-2.5 text-sm font-medium text-primary hover:bg-primary/15 transition-colors"
+        >
+          <MessageCircle className="size-4" />
+          Start Study Mode
+        </button>
       </div>
     </>
   );

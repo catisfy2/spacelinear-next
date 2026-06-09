@@ -8,12 +8,14 @@ interface SuggestionCardsProps {
   topics: Topic[];
   subjects: Subject[];
   onSelect: (suggestion: string) => void;
+  onShowStudyPlanDialog?: () => void;
 }
 
 export function SuggestionCards({
   topics,
   subjects,
   onSelect,
+  onShowStudyPlanDialog,
 }: SuggestionCardsProps) {
   const dueTopics = useMemo(() => {
     const today = new Date();
@@ -52,44 +54,63 @@ export function SuggestionCards({
     color: string;
   }[] = [];
 
-  // s-1: First due topic
+  // s-1: First due topic — targeted revision with existing data
   const firstDue = dueTopics[0];
   if (firstDue) {
     const subName = getSubjectName(firstDue.subjectId);
+    const subject = subjects.find((s) => s.id === firstDue.subjectId);
+    const relatedTopics = topics
+      .filter((t) => t.subjectId === firstDue.subjectId)
+      .map((t) => t.title);
+    const topicsContext =
+      relatedTopics.length > 1
+        ? ` I've studied these related topics in the same subject: ${relatedTopics.join(", ")}.`
+        : "";
     cards.push({
       icon: Target,
       title: `Revise: ${firstDue.title}`,
       description: subName
         ? `Due for review — ${subName}`
         : "Due for review today",
-      prompt: `Help me revise "${firstDue.title}"${subName ? ` (${subName})` : ""}. I need a quick refresher on the key concepts.`,
-      color: "from-blue-500/10 to-blue-600/5 border-blue-500/20 hover:border-blue-500/40",
+      prompt: `I need to revise "${firstDue.title}"${subName ? ` under ${subName}` : ""}. My goal is to strengthen my understanding of the core concepts and fill any gaps I might have.${topicsContext} Please quiz me on the key ideas and explain any areas where I struggle. Do NOT create any new subjects or topics.`,
+      color:
+        "from-blue-500/10 to-blue-600/5 border-blue-500/20 hover:border-blue-500/40",
     });
   }
 
-  // s-2: Second due topic
+  // s-2: Second due topic — deep study session with existing data
   const secondDue = dueTopics[1];
   if (secondDue) {
     const subName = getSubjectName(secondDue.subjectId);
+    const subject = subjects.find((s) => s.id === secondDue.subjectId);
+    const relatedTopics = topics
+      .filter((t) => t.subjectId === secondDue.subjectId)
+      .map((t) => t.title);
+    const topicsContext =
+      relatedTopics.length > 1
+        ? ` I've also been studying these related topics: ${relatedTopics.join(", ")}.`
+        : "";
     cards.push({
       icon: Lightbulb,
       title: `Deep dive: ${secondDue.title}`,
       description: subName
         ? `Master this topic — ${subName}`
         : "Strengthen your understanding",
-      prompt: `I want to do a deep study session on "${secondDue.title}"${subName ? ` (${subName})` : ""}. Quiz me and help me master this topic.`,
-      color: "from-purple-500/10 to-purple-600/5 border-purple-500/20 hover:border-purple-500/40",
+      prompt: `I want to do a deep study session on "${secondDue.title}"${subName ? ` in ${subName}` : ""}. Help me go beyond the basics — challenge me with advanced questions, real-world applications, and connections to related ideas.${topicsContext} Do NOT create any new subjects or topics.`,
+      color:
+        "from-purple-500/10 to-purple-600/5 border-purple-500/20 hover:border-purple-500/40",
     });
   }
 
-  // s-3: Create study plan
+  // s-3: Create study plan — opens the dialog instead of sending raw prompt
   cards.push({
     icon: ClipboardList,
     title: "Create a study plan",
     description: "Organize your learning journey",
     prompt:
       "Help me create a study plan. What topics should I focus on and how should I structure my learning sessions?",
-    color: "from-amber-500/10 to-amber-600/5 border-amber-500/20 hover:border-amber-500/40",
+    color:
+      "from-amber-500/10 to-amber-600/5 border-amber-500/20 hover:border-amber-500/40",
   });
 
   if (cards.length === 0) return null;
@@ -126,7 +147,13 @@ export function SuggestionCards({
             <button
               key={i}
               type="button"
-              onClick={() => onSelect(card.prompt)}
+              onClick={() => {
+                if (i === cards.length - 1 && onShowStudyPlanDialog) {
+                  onShowStudyPlanDialog();
+                } else {
+                  onSelect(card.prompt);
+                }
+              }}
               className={`group relative flex items-start gap-4 rounded-xl border bg-gradient-to-br p-4 text-left transition-all ${card.color}`}
             >
               <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-background/80 ring-1 ring-border">

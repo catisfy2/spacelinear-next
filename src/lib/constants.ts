@@ -53,21 +53,6 @@ export const DEFAULT_SUBJECT_COLORS = [
   "#a855f7",
 ];
 
-export const DEFAULT_SUBJECT_ICONS = [
-  "🧠",
-  "📚",
-  "💻",
-  "🔬",
-  "🏗️",
-  "🗾",
-  "🎨",
-  "📊",
-  "🔧",
-  "🌍",
-  "⚡",
-  "🎯",
-  "🔐",
-  "📐",
-  "🧪",
-  "🎵",
-];
+// Re-export icon names from the new subject-icons module
+// This preserves backward compatibility for any code importing from constants
+export { SUBJECT_ICON_NAMES as DEFAULT_SUBJECT_ICONS } from "./subject-icons";

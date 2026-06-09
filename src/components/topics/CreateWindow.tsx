@@ -7,7 +7,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { DEFAULT_SUBJECT_COLORS, DEFAULT_SUBJECT_ICONS } from "@/lib/constants";
+import { DEFAULT_SUBJECT_COLORS } from "@/lib/constants";
+import { pickRandomIcon } from "@/lib/subject-icons";
+import { SubjectIcon } from "@/components/subjects/SubjectIcon";
 
 export function CreateWindow({ onClose }: { onClose: () => void }) {
   const { addTopic, addSubject, subjects } = useStore();
@@ -215,9 +217,7 @@ export function CreateWindow({ onClose }: { onClose: () => void }) {
               DEFAULT_SUBJECT_COLORS[
                 Math.floor(Math.random() * DEFAULT_SUBJECT_COLORS.length)
               ],
-            icon: DEFAULT_SUBJECT_ICONS[
-              Math.floor(Math.random() * DEFAULT_SUBJECT_ICONS.length)
-            ],
+            icon: pickRandomIcon(),
           },
           user.id,
         );
@@ -409,7 +409,9 @@ export function CreateWindow({ onClose }: { onClose: () => void }) {
                             : "text-foreground hover:bg-accent",
                         )}
                       >
-                        <span className="shrink-0">{item.subject.icon}</span>
+                        <span className="shrink-0">
+                          <SubjectIcon name={item.subject.icon} size={14} />
+                        </span>
                         <span className="flex-1 truncate">
                           {item.subject.name}
                         </span>
@@ -477,14 +479,14 @@ export function CreateWindow({ onClose }: { onClose: () => void }) {
                   }}
                   className="bg-muted flex gap-1 items-center justify-center px-[14px] py-1 rounded-[31px] shrink-0 transition-colors hover:bg-muted/80"
                 >
-                <img
-                  alt=""
-                  className="size-[13px] shrink-0"
-                  src="/icons/tags.svg"
-                />
-                <span className="font-sans font-medium text-[12px] text-card-foreground/60 whitespace-nowrap">
-                  Tags
-                </span>
+                  <img
+                    alt=""
+                    className="size-[13px] shrink-0"
+                    src="/icons/tags.svg"
+                  />
+                  <span className="font-sans font-medium text-[12px] text-card-foreground/60 whitespace-nowrap">
+                    Tags
+                  </span>
                 </button>
               ) : (
                 <div

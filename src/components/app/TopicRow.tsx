@@ -5,6 +5,7 @@ import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { formatNextReview, DIFFICULTY_CONFIG } from "@/lib/constants";
 import type { Topic, Subject } from "@/lib/types";
+import { SubjectIcon } from "@/components/subjects/SubjectIcon";
 
 function formatSafeDate(
   dateStr: string | null | undefined,
@@ -144,13 +145,12 @@ export function TopicRow({
 
       <div className="flex items-center gap-[45px]">
         <span className="hidden group-hover:inline text-[12px] font-medium text-black whitespace-nowrap">
-          {topic.totalReviews}{" "}
-          {topic.totalReviews === 1 ? "review" : "reviews"}
+          {topic.totalReviews} {topic.totalReviews === 1 ? "review" : "reviews"}
         </span>
 
         {showSubject && subject && (
           <span className="font-medium text-[14px] text-[#585858] whitespace-nowrap">
-            {subject.icon} {subject.name}
+            <SubjectIcon name={subject.icon} size={14} /> {subject.name}
           </span>
         )}
 

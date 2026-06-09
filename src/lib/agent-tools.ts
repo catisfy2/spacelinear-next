@@ -1,7 +1,8 @@
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import { getSupabaseAdmin } from "./supabase-server";
 import type { Database } from "@/integrations/supabase/types";
-import { DEFAULT_SUBJECT_COLORS, DEFAULT_SUBJECT_ICONS } from "./constants";
+import { DEFAULT_SUBJECT_COLORS } from "./constants";
+import { pickIconForSubject, pickRandomIcon } from "./subject-icons";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
@@ -174,11 +175,7 @@ async function createSubject(
         DEFAULT_SUBJECT_COLORS[
           Math.floor(Math.random() * DEFAULT_SUBJECT_COLORS.length)
         ],
-      icon:
-        (params.icon as string) ||
-        DEFAULT_SUBJECT_ICONS[
-          Math.floor(Math.random() * DEFAULT_SUBJECT_ICONS.length)
-        ],
+      icon: (params.icon as string) || pickIconForSubject(name.trim()),
       user_id: userId,
     })
     .select()
@@ -241,9 +238,7 @@ async function createTopic(
           DEFAULT_SUBJECT_COLORS[
             Math.floor(Math.random() * DEFAULT_SUBJECT_COLORS.length)
           ],
-        icon: DEFAULT_SUBJECT_ICONS[
-          Math.floor(Math.random() * DEFAULT_SUBJECT_ICONS.length)
-        ],
+        icon: pickIconForSubject(subjectName.trim()),
         user_id: userId,
       })
       .select()

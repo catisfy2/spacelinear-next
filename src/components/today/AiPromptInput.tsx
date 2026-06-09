@@ -2,9 +2,12 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Mic, MicOff } from "lucide-react";
+import { Mic, MicOff, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSpeechToText } from "@/hooks/useSpeechToText";
+import { useAuth } from "@/hooks/useAuth";
+import { useStore } from "@/store/useStore";
+import { toast } from "sonner";
 
 export function AiPromptInput({
   placeholder = "What you wanna study today?",
@@ -12,8 +15,12 @@ export function AiPromptInput({
   placeholder?: string;
 }) {
   const [value, setValue] = useState("");
+  const [attaching, setAttaching] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
+  const { user } = useAuth();
+  const { uploadFile } = useStore();
 
   useEffect(() => {
     const ta = textareaRef.current;
@@ -38,11 +45,32 @@ export function AiPromptInput({
   );
 
   const handleAttachment = useCallback(() => {
-    const input = document.createElement("input");
-    input.type = "file";
-    input.accept = "image/*,.pdf,.doc,.docx";
-    input.click();
+    fileInputRef.current?.click();
   }, []);
+
+  const handleFileSelected = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file || !user) return;
+
+      setAttaching(true);
+      try {
+        const material = await uploadFile(file, null, user.id);
+        toast.success(`Uploaded "${file.name}"`);
+
+        // Navigate to chat with a message about the uploaded material
+        const message = `I've uploaded a study material called "${material.name}". Please analyze it and create a quiz set with 10 questions based on its content to help me study.`;
+        router.push("/chat?q=" + encodeURIComponent(message));
+      } catch (err) {
+        console.error("Upload failed:", err);
+        toast.error("Failed to upload file");
+      } finally {
+        setAttaching(false);
+        if (fileInputRef.current) fileInputRef.current.value = "";
+      }
+    },
+    [user, uploadFile, router],
+  );
 
   const {
     isListening,
@@ -70,17 +98,29 @@ export function AiPromptInput({
 
   return (
     <div className="flex w-full items-center gap-[20px] overflow-clip rounded-[34px] bg-secondary px-[10px] py-[12px]">
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*,.pdf,.doc,.docx,.txt,.md,.csv"
+        className="hidden"
+        onChange={handleFileSelected}
+      />
       <button
         type="button"
         onClick={handleAttachment}
-        className="size-[36px] shrink-0"
+        disabled={attaching}
+        className="size-[36px] shrink-0 disabled:opacity-40"
         aria-label="Attach file"
       >
-        <img
-          alt="Attach"
-          src="/assets/today/add-button.svg"
-          className="size-full"
-        />
+        {attaching ? (
+          <Loader2 className="mx-auto size-[18px] animate-spin text-foreground/70" />
+        ) : (
+          <img
+            alt="Attach"
+            src="/assets/today/add-button.svg"
+            className="size-full"
+          />
+        )}
       </button>
       <textarea
         ref={textareaRef}

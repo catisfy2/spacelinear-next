@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import type { Topic, Subject } from "@/lib/types";
 import { TopicStateBadge } from "@/components/app/TopicStateBadge";
 import { TopicDifficultyBadge } from "@/components/app/TopicDifficultyBadge";
+import { SubjectIcon } from "@/components/subjects/SubjectIcon";
 
 /** Color for the bullet dot based on current difficulty or state */
 function bulletColor(topic: Topic): string {
@@ -82,7 +83,7 @@ export function TodayTopicItem({
         </p>
         {subject && (
           <p className="mt-0.5 truncate text-xs text-foreground/70">
-            {subject.icon} {subject.name}
+            <SubjectIcon name={subject.icon} size={12} /> {subject.name}
           </p>
         )}
       </Link>
