@@ -1,5 +1,5 @@
-import { QuizPage } from "@/views/Quiz";
+import { redirect } from "next/navigation";
 
 export default function QuizRoutePage() {
-  return <QuizPage />;
+  redirect("/quiz/new");
 }

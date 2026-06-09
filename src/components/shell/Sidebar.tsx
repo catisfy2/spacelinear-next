@@ -1,90 +1,59 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  BarChart3,
-  LayoutList,
-  BookOpen,
-  Plus,
-  CalendarCheck,
-  Settings,
-  Palette,
-  FileText,
-  StickyNote,
-  HelpCircle,
-} from "lucide-react";
+import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
 
-import logoImg from "@/assets/icon-spacelinear.png";
 import {
   Sidebar as SidebarPrimitive,
   SidebarContent,
   SidebarFooter,
-  SidebarGroup,
-  SidebarGroupContent,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarSeparator,
-  SidebarTrigger,
+  useSidebar,
 } from "@/components/ui/sidebar";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useAuth } from "@/hooks/useAuth";
-import { CreateTopicModal } from "@/components/topics/CreateTopicModal";
-import { SidebarChatDropdown } from "@/components/chat/SidebarChatDropdown";
+import { SidebarToolbar } from "./SidebarToolbar";
+import { SidebarRecent } from "./SidebarRecent";
 import {
-  applyThemeMode,
-  getStoredThemeMode,
-  subscribeSystemTheme,
-  type ThemeMode,
-} from "@/lib/theme";
+  IconLogo,
+  IconMochi,
+  IconToday,
+  IconTopics,
+  IconMaterials,
+  IconPerformance,
+  IconQuiz,
+} from "./SidebarIcons";
 
-export function Sidebar() {
+interface SidebarProps {
+  onOpenCreateTopic?: () => void;
+}
+
+export function Sidebar({ onOpenCreateTopic }: SidebarProps) {
   const { user } = useAuth();
   const pathname = usePathname();
-  const [showCreateTopic, setShowCreateTopic] = useState(false);
-  const [themeMode, setThemeMode] = useState<ThemeMode>("dark");
-
-  useEffect(() => {
-    setThemeMode(getStoredThemeMode());
-  }, []);
-
-  useEffect(() => {
-    if (themeMode !== "system") return;
-    return subscribeSystemTheme(() => applyThemeMode("system"));
-  }, [themeMode]);
+  const { toggleSidebar, state } = useSidebar();
+  const isCollapsed = state === "collapsed";
 
   const displayName =
-    user?.user_metadata?.full_name || user?.email?.split("@")[0] || "User";
+    user?.user_metadata?.full_name || user?.email?.split("@")[0] || "Nahin";
   const initials = displayName.slice(0, 2).toUpperCase();
 
-  const cycleTheme = () => {
-    const next: ThemeMode =
-      themeMode === "light"
-        ? "dark"
-        : themeMode === "dark"
-          ? "system"
-          : "light";
-    applyThemeMode(next);
-    setThemeMode(next);
-  };
-
-  const themeLabel =
-    themeMode === "light" ? "Light" : themeMode === "dark" ? "Dark" : "System";
-
-  const primaryNavItems = [
-    { href: "/today", label: "Today", icon: CalendarCheck, exact: true },
-    { href: "/topics", label: "Topics", icon: LayoutList },
-    { href: "/subjects", label: "Subjects", icon: BookOpen },
-    { href: "/pulse", label: "Pulse", icon: BarChart3, exact: true },
-  ];
-
-  const secondaryNavItems = [
-    { href: "/quiz", label: "Quiz", icon: HelpCircle },
-    { href: "/materials", label: "Materials", icon: FileText },
-    { href: "/notes", label: "Notes", icon: StickyNote },
+  const navItems = [
+    { href: "/mochi", label: "Mochi", icon: IconMochi },
+    { href: "/today", label: "Today", icon: IconToday, exact: true },
+    { href: "/topics", label: "Topics", icon: IconTopics },
+    { href: "/materials", label: "Materials", icon: IconMaterials },
+    { href: "/quiz", label: "Quiz", icon: IconQuiz },
+    {
+      href: "/pulse",
+      label: "Performance",
+      icon: IconPerformance,
+      exact: true,
+    },
   ];
 
   function isActive(href: string, exact?: boolean) {
@@ -93,135 +62,79 @@ export function Sidebar() {
   }
 
   return (
-    <>
-      <SidebarPrimitive collapsible="icon">
-        <SidebarHeader className="border-b border-sidebar-border">
-          <div className="flex items-center justify-between px-1">
-            <Link href="/" className="flex items-center gap-2">
-              <img
-                src={typeof logoImg === "string" ? logoImg : logoImg.src}
-                alt="SpaceLinear"
-                className="h-[34px] w-[34px] shrink-0 rounded-lg"
-              />
-              <span className="text-base font-semibold text-sidebar-foreground group-data-[collapsible=icon]:hidden">
-                SpaceLinear
-              </span>
-            </Link>
-            <div className="flex items-center gap-1 group-data-[collapsible=icon]:hidden">
-              <button
-                type="button"
-                onClick={() => setShowCreateTopic(true)}
-                className="flex h-7 w-7 items-center justify-center rounded-md text-sidebar-foreground transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-                aria-label="New topic"
-              >
-                <Plus className="h-4 w-4" />
-              </button>
-              <SidebarTrigger />
-            </div>
+    <SidebarPrimitive collapsible="icon">
+      <SidebarHeader className="flex flex-col gap-0 p-0 pt-[11px]">
+        <div className="flex items-center justify-between group-data-[state=collapsed]:justify-center pl-[12px] pr-[12px] h-8">
+          <div className="group-data-[collapsible=icon]:hidden size-8 shrink-0">
+            <IconLogo className="size-8" />
           </div>
-        </SidebarHeader>
+          <button
+            type="button"
+            onClick={toggleSidebar}
+            className="size-[20px] flex items-center justify-center text-sidebar-foreground/60 hover:text-sidebar-foreground transition-colors"
+            aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+          >
+            {isCollapsed ? (
+              <PanelLeftOpen className="size-[20px]" />
+            ) : (
+              <PanelLeftClose className="size-[20px]" />
+            )}
+          </button>
+        </div>
+      </SidebarHeader>
 
-        <SidebarContent>
-          <SidebarGroup>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                {primaryNavItems.map((item) => (
-                  <SidebarMenuItem key={item.href}>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={isActive(item.href, item.exact)}
-                      tooltip={item.label}
+      <SidebarContent className="group-data-[state=expanded]:px-[10px] py-0 gap-[13px]">
+        <SidebarToolbar onOpenCreateTopic={onOpenCreateTopic ?? (() => {})} />
+        <div className="flex flex-col items-start group-data-[collapsible=icon]:items-center justify-center w-full">
+          <SidebarMenu className="gap-0">
+            {navItems.map((item) => (
+              <SidebarMenuItem key={item.href}>
+                <SidebarMenuButton
+                  asChild
+                  isActive={isActive(item.href, item.exact)}
+                  tooltip={item.label}
+                  size="sm"
+                  className="group/menu-item px-[12px] py-[10px] h-[35px] rounded-[6px] data-[active=true]:bg-sidebar-accent data-[active=true]:rounded-[6px] group-data-[collapsible=icon]:mx-auto"
+                >
+                  <Link href={item.href}>
+                    <item.icon className="size-[16px] group-data-[collapsible=icon]:size-[18px]" />
+                    <span
+                      className={`text-sm font-medium transition-opacity group-data-[collapsible=icon]:hidden ${isActive(item.href, item.exact) ? "opacity-100" : "opacity-85 group-hover/menu-item:opacity-100"}`}
                     >
-                      <Link href={item.href}>
-                        <item.icon />
-                        <span>{item.label}</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-
-          <SidebarSeparator />
-
-          <SidebarGroup>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                <SidebarChatDropdown
-                  isActive={
-                    pathname === "/chat" ||
-                    (pathname?.startsWith("/chat/") ?? false)
-                  }
-                />
-                {secondaryNavItems.map((item) => (
-                  <SidebarMenuItem key={item.href}>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={isActive(item.href)}
-                      tooltip={item.label}
-                    >
-                      <Link href={item.href}>
-                        <item.icon />
-                        <span>{item.label}</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        </SidebarContent>
-
-        <SidebarFooter className="border-t border-sidebar-border p-2">
-          <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton asChild tooltip="Settings">
-                <Link href="/settings">
-                  <Settings />
-                  <span>Settings</span>
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
-              <SidebarMenuButton
-                tooltip={`Theme: ${themeLabel}`}
-                onClick={cycleTheme}
-              >
-                <Palette />
-                <span>
-                  Theme:{" "}
-                  <span className="text-sidebar-foreground/60">
-                    {themeLabel}
-                  </span>
-                </span>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
-              <SidebarMenuButton asChild tooltip={displayName}>
-                <Link href="/settings">
-                  <Avatar className="h-5 w-5">
-                    <AvatarFallback className="bg-sidebar-accent text-[8px] text-sidebar-accent-foreground">
-                      {initials}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex flex-col">
-                    <span className="truncate text-sm leading-tight">
-                      {displayName}
+                      {item.label}
                     </span>
-                    <span className="text-[10px] leading-tight text-sidebar-foreground/60">
-                      Free
-                    </span>
-                  </div>
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            ))}
           </SidebarMenu>
-        </SidebarFooter>
-      </SidebarPrimitive>
-      {showCreateTopic && (
-        <CreateTopicModal onClose={() => setShowCreateTopic(false)} />
-      )}
-    </>
+
+          <div className="group-data-[collapsible=icon]:hidden w-full">
+            <SidebarRecent />
+          </div>
+        </div>
+      </SidebarContent>
+
+      <SidebarFooter className="p-0 pb-[12px] group-data-[state=expanded]:pl-[10px] group-data-[state=expanded]:pr-[10px]">
+        <Link
+          href="/settings"
+          className="flex items-center gap-3 group-data-[state=collapsed]:justify-center h-[55px] w-full"
+        >
+          <Avatar className="size-[34px] rounded-full bg-sidebar-accent shrink-0">
+            <AvatarFallback className="text-sm text-sidebar-foreground">
+              {initials}
+            </AvatarFallback>
+          </Avatar>
+          <div className="group-data-[collapsible=icon]:hidden flex flex-col">
+            <span className="text-base font-medium text-sidebar-foreground leading-tight">
+              {displayName}
+            </span>
+            <span className="text-sm text-sidebar-foreground leading-tight">
+              Free
+            </span>
+          </div>
+        </Link>
+      </SidebarFooter>
+    </SidebarPrimitive>
   );
 }

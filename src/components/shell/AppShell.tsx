@@ -7,7 +7,7 @@ import { Sidebar } from "./Sidebar";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { CreateTopicModal } from "@/components/topics/CreateTopicModal";
+import { CreateWindow } from "@/components/topics/CreateWindow";
 import {
   SidebarProvider,
   SidebarInset,
@@ -82,7 +82,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <SidebarProvider>
       <AutoCloseMobileSidebar />
       <div className="flex h-screen w-full">
-        <Sidebar />
+        <Sidebar onOpenCreateTopic={() => setShowCreateTopic(true)} />
         <SidebarInset className="overflow-hidden">
           <MobileTrigger />
           <div className={cn("flex-1 overflow-y-auto", isMobile && "pt-14")}>
@@ -91,7 +91,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </SidebarInset>
       </div>
       {showCreateTopic && (
-        <CreateTopicModal onClose={() => setShowCreateTopic(false)} />
+        <CreateWindow onClose={() => setShowCreateTopic(false)} />
       )}
     </SidebarProvider>
   );

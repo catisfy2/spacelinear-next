@@ -1,5 +1,5 @@
-import { SettingsPage } from "@/views/Settings";
+import { redirect } from "next/navigation";
 
-export default function SettingsRoutePage() {
-  return <SettingsPage />;
+export default function SettingsPage() {
+  redirect("/settings/profile");
 }

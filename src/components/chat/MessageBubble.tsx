@@ -3,6 +3,8 @@
 import type { Message } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { User, Bot } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 interface MessageBubbleProps {
   message: Message;
@@ -10,15 +12,11 @@ interface MessageBubbleProps {
 
 export function MessageBubble({ message }: MessageBubbleProps) {
   const isUser = message.role === "user";
-  const isStreaming = message.id.startsWith("temp-assistant-") && !message.content;
+  const isStreaming =
+    message.id.startsWith("temp-assistant-") && !message.content;
 
   return (
-    <div
-      className={cn(
-        "flex gap-3",
-        isUser ? "justify-end" : "justify-start",
-      )}
-    >
+    <div className={cn("flex gap-3", isUser ? "justify-end" : "justify-start")}>
       {!isUser && (
         <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 ring-1 ring-primary/20">
           <Bot className="h-4 w-4 text-primary" />
@@ -39,8 +37,14 @@ export function MessageBubble({ message }: MessageBubbleProps) {
             <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted-foreground/40 [animation-delay:150ms]" />
             <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-muted-foreground/40 [animation-delay:300ms]" />
           </span>
-        ) : (
+        ) : isUser ? (
           <div className="whitespace-pre-wrap">{message.content}</div>
+        ) : (
+          <div className="prose prose-sm prose-neutral dark:prose-invert max-w-none break-words">
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+              {message.content}
+            </ReactMarkdown>
+          </div>
         )}
       </div>
 

@@ -38,6 +38,7 @@ export const STATE_CONFIG = {
   learning: { label: "Learning", color: "sl-hard", icon: "🟠" },
   new: { label: "New", color: "sl-new", icon: "⚪" },
   reviewing: { label: "Reviewing", color: "sl-easy", icon: "🟢" },
+  archived: { label: "Archived", color: "muted-foreground", icon: "📦" },
 } as const;
 
 export const DEFAULT_SUBJECT_COLORS = [

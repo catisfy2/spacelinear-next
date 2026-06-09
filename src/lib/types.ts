@@ -3,7 +3,8 @@ export type TopicState =
   | "new"
   | "learning"
   | "reviewing"
-  | "relearning";
+  | "relearning"
+  | "archived";
 export type Difficulty = "relearn" | "hard" | "medium" | "easy";
 
 export interface Subject {
@@ -18,6 +19,7 @@ export interface Subject {
 export interface Topic {
   id: string;
   subjectId: string;
+  planId?: string;
   title: string;
   description?: string;
   notes?: string;
@@ -153,4 +155,48 @@ export interface GapAnalysis {
 export interface QuizFilters {
   subject?: string;
   topic?: string;
+}
+
+// ── Study Plan Types ──────────────────────────────────────────────────
+
+export type StudyPlanStatus = "generating" | "review" | "applied" | "archived";
+
+export interface StudyPlanResource {
+  title: string;
+  url: string;
+  type: "video" | "article" | "course" | "book" | "other";
+  description: string;
+}
+
+export interface StudyPlanTopic {
+  title: string;
+  description: string;
+  difficulty: "beginner" | "intermediate" | "advanced";
+  estimated_minutes: number;
+  prerequisites: string[];
+  order: number;
+  resources: StudyPlanResource[];
+  searchQuery?: string;
+}
+
+export interface StudyPlanSubject {
+  name: string;
+  description: string;
+  topics: StudyPlanTopic[];
+}
+
+export interface StudyPlanData {
+  subjects: StudyPlanSubject[];
+}
+
+export interface StudyPlan {
+  id: string;
+  userId: string;
+  title: string | null;
+  prompt: string | null;
+  description: string | null;
+  planData: StudyPlanData | null;
+  status: StudyPlanStatus;
+  createdAt: string;
+  updatedAt: string;
 }

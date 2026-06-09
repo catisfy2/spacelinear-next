@@ -1,5 +1,5 @@
-import { HistoryPage } from "@/views/quiz/HistoryPage";
+import { QuizHistoryPage } from "@/views/quiz/QuizHistoryPage";
 
-export default function HistoryRoute() {
-  return <HistoryPage />;
+export default function QuizHistoryRoutePage() {
+  return <QuizHistoryPage />;
 }
