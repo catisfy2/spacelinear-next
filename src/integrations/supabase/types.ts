@@ -347,6 +347,8 @@ export type Database = {
         Row: {
           content: string | null
           created_at: string | null
+          feedback: string | null
+          feedback_updated_at: string | null
           id: string
           mochi_chat_id: string | null
           role: string
@@ -357,6 +359,8 @@ export type Database = {
         Insert: {
           content?: string | null
           created_at?: string | null
+          feedback?: string | null
+          feedback_updated_at?: string | null
           id?: string
           mochi_chat_id?: string | null
           role: string
@@ -367,6 +371,8 @@ export type Database = {
         Update: {
           content?: string | null
           created_at?: string | null
+          feedback?: string | null
+          feedback_updated_at?: string | null
           id?: string
           mochi_chat_id?: string | null
           role?: string

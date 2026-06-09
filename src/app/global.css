@@ -1,5 +1,6 @@
 @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap");
 @import url("https://fonts.googleapis.com/css2?family=Source+Serif+Pro&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=HeadlandOne&display=swap");
 
 @tailwind base;
 @tailwind components;
@@ -147,6 +148,29 @@
 }
 
 @layer utilities {
+    .mochi-markdown > * + * {
+        margin-top: 0.75rem;
+    }
+
+    .mochi-markdown ul,
+    .mochi-markdown ol {
+        padding-left: 1.25rem;
+    }
+
+    .mochi-markdown ul {
+        list-style: disc;
+    }
+
+    .mochi-markdown ol {
+        list-style: decimal;
+    }
+
+    .mochi-markdown code {
+        border-radius: 0.25rem;
+        background: hsl(var(--secondary));
+        padding: 0.125rem 0.25rem;
+    }
+
     .text-relearn {
         color: hsl(var(--sl-relearn));
     }
@@ -186,3 +210,5 @@
         background-color: hsl(var(--sl-easy) / 0.1);
     }
 }
+
+

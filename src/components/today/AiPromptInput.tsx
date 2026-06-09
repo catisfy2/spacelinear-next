@@ -24,7 +24,7 @@ export function AiPromptInput({
 
   const handleSend = useCallback(() => {
     if (!value.trim()) return;
-    router.push("/chat?q=" + encodeURIComponent(value.trim()));
+    router.push("/mochi");
   }, [value, router]);
 
   const handleKeyDown = useCallback(

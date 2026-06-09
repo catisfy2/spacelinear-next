@@ -2,7 +2,6 @@
 
 import { useState, useMemo, useCallback } from "react";
 import { format } from "date-fns";
-import { toast } from "sonner";
 import { useStore } from "@/store/useStore";
 import type { Topic } from "@/lib/types";
 import { TopicRow } from "@/components/app/TopicRow";
@@ -13,6 +12,7 @@ import {
 import { FilterPills, type PillMode } from "@/components/topics/FilterPills";
 import { SectionGroup } from "@/components/topics/SectionGroup";
 import { CreateWindow } from "@/components/topics/CreateWindow";
+import { SubjectsListView } from "@/components/topics/SubjectsListView";
 
 const STATE_GROUP_ORDER = ["Learning", "Reviewing", "New & Backlog"];
 
@@ -41,6 +41,7 @@ function getDateLabel(dateStr: string): string {
 export function TopicsPage() {
   const { topics, subjects, scheduleTopicForToday, archiveTopic, unarchiveTopic } = useStore();
 
+  const [viewMode, setViewMode] = useState<ToggleMode>("topics");
   const [activePill, setActivePill] = useState<PillMode>("date");
   const [selectedTopicIds, setSelectedTopicIds] = useState<Set<string>>(
     new Set(),
@@ -57,9 +58,8 @@ export function TopicsPage() {
   }, []);
 
   const handleToggleChange = useCallback((mode: ToggleMode) => {
-    if (mode === "subjects") {
-      toast("Subjects view is under development");
-    }
+    setViewMode(mode);
+    setSelectedTopicIds(new Set());
   }, []);
 
   const handlePillChange = useCallback((pill: PillMode) => {
@@ -171,7 +171,7 @@ export function TopicsPage() {
     setSelectedTopicIds(new Set());
   }, [selectedTopicIds, unarchiveTopic]);
 
-  if (topics.length === 0) {
+  if (topics.length === 0 && viewMode === "topics") {
     return (
       <div className="flex flex-col items-center justify-center size-full min-h-[60vh]">
         <p className="text-[18px] font-medium text-foreground mb-[16px]">
@@ -194,63 +194,83 @@ export function TopicsPage() {
   return (
     <div className="flex flex-col gap-[32px] items-center px-[22px] py-[16px] size-full bg-background">
       <div className="flex items-center p-[10px] w-full">
-        <TopicsSubjectsToggle value="topics" onChange={handleToggleChange} />
+        <TopicsSubjectsToggle value={viewMode} onChange={handleToggleChange} />
       </div>
 
       <div className="flex flex-col gap-[32px] items-start w-[1246px] max-w-full">
-        <div className="flex items-center justify-between w-full">
-          <FilterPills value={activePill} onChange={handlePillChange} />
+        {viewMode === "subjects" ? (
+          <>
+            <div className="flex items-center justify-between w-full">
+              <div className="bg-[rgba(206,126,79,0.4)] flex items-center justify-center px-[18px] py-[6px] rounded-[30px]">
+                <span className="font-medium text-[#784121] text-[14px] whitespace-nowrap">
+                  All Subject
+                </span>
+              </div>
+              <svg width="26" height="26" viewBox="0 0 26 26" fill="none" xmlns="http://www.w3.org/2000/svg" className="text-muted-foreground">
+                <path d="M4 7H22" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                <path d="M7 13H19" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                <path d="M10 19H16" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+              </svg>
+            </div>
+            <SubjectsListView />
+          </>
+        ) : (
+          <>
+            <div className="flex items-center justify-between w-full">
+              <FilterPills value={activePill} onChange={handlePillChange} />
 
-          {selectedTopicObjs.length > 0 && (
-            <div className="flex items-center gap-3">
-              <span className="text-sm text-card-foreground/60">
-                {selectedTopicObjs.length} selected
-              </span>
-              {allSelectedArchived ? (
-                <button
-                  type="button"
-                  onClick={handleBatchUnarchive}
-                  className="bg-primary flex items-center justify-center px-4 py-1.5 rounded-[31px] text-[13px] font-medium text-primary-foreground transition-opacity hover:opacity-90"
-                >
-                  Unarchive
-                </button>
-              ) : (
-                <>
-                  <button
-                    type="button"
-                    onClick={handleBatchStudyToday}
-                    className="bg-primary flex items-center justify-center px-4 py-1.5 rounded-[31px] text-[13px] font-medium text-primary-foreground transition-opacity hover:opacity-90"
-                  >
-                    Study Today
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleBatchArchive}
-                    className="bg-muted flex items-center justify-center px-4 py-1.5 rounded-[31px] text-[13px] font-medium text-card-foreground/60 transition-opacity hover:opacity-90"
-                  >
-                    Archive
-                  </button>
-                </>
+              {selectedTopicObjs.length > 0 && (
+                <div className="flex items-center gap-3">
+                  <span className="text-sm text-card-foreground/60">
+                    {selectedTopicObjs.length} selected
+                  </span>
+                  {allSelectedArchived ? (
+                    <button
+                      type="button"
+                      onClick={handleBatchUnarchive}
+                      className="bg-primary flex items-center justify-center px-4 py-1.5 rounded-[31px] text-[13px] font-medium text-primary-foreground transition-opacity hover:opacity-90"
+                    >
+                      Unarchive
+                    </button>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        onClick={handleBatchStudyToday}
+                        className="bg-primary flex items-center justify-center px-4 py-1.5 rounded-[31px] text-[13px] font-medium text-primary-foreground transition-opacity hover:opacity-90"
+                      >
+                        Study Today
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleBatchArchive}
+                        className="bg-muted flex items-center justify-center px-4 py-1.5 rounded-[31px] text-[13px] font-medium text-card-foreground/60 transition-opacity hover:opacity-90"
+                      >
+                        Archive
+                      </button>
+                    </>
+                  )}
+                </div>
               )}
             </div>
-          )}
-        </div>
 
-        {[...groupedTopics.entries()].map(([groupLabel, topicList]) => (
-          <SectionGroup key={groupLabel} label={groupLabel} defaultOpen={true}>
-            {topicList.map((topic) => (
-              <TopicRow
-                key={topic.id}
-                topic={topic}
-                subject={subjectMap.get(topic.subjectId)}
-                selected={selectedTopicIds.has(topic.id)}
-                onToggle={toggleTopicSelection}
-                showSubject={activePill !== "subject"}
-                showDate={activePill === "subject"}
-              />
+            {[...groupedTopics.entries()].map(([groupLabel, topicList]) => (
+              <SectionGroup key={groupLabel} label={groupLabel} defaultOpen={true}>
+                {topicList.map((topic) => (
+                  <TopicRow
+                    key={topic.id}
+                    topic={topic}
+                    subject={subjectMap.get(topic.subjectId)}
+                    selected={selectedTopicIds.has(topic.id)}
+                    onToggle={toggleTopicSelection}
+                    showSubject={activePill !== "subject"}
+                    showDate={activePill === "subject"}
+                  />
+                ))}
+              </SectionGroup>
             ))}
-          </SectionGroup>
-        ))}
+          </>
+        )}
       </div>
 
       {showCreateTopic && (

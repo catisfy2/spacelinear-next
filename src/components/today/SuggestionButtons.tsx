@@ -12,12 +12,9 @@ const SUGGESTIONS = [
 export function SuggestionButtons() {
   const router = useRouter();
 
-  const handleClick = useCallback(
-    (query: string) => {
-      router.push("/chat?q=" + encodeURIComponent(query));
-    },
-    [router],
-  );
+  const handleClick = useCallback(() => {
+    router.push("/mochi");
+  }, [router]);
 
   return (
     <div className="flex w-[620px] items-center justify-center gap-[8px]">
@@ -25,7 +22,7 @@ export function SuggestionButtons() {
         <button
           key={suggestion.label}
           type="button"
-          onClick={() => handleClick(suggestion.query)}
+          onClick={handleClick}
           className="flex items-center justify-center rounded-[20px] border-[1.5px] border-black/20 bg-secondary/50 px-[26px] py-[10px] transition-colors hover:bg-secondary dark:border-border"
         >
           <p className="whitespace-nowrap text-[12px] font-normal text-foreground">

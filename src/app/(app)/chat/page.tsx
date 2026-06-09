@@ -1,5 +1,5 @@
-import { ChatPage } from "@/views/Chat";
+import { redirect } from "next/navigation";
 
 export default function ChatRoutePage() {
-  return <ChatPage />;
+  redirect("/mochi");
 }
