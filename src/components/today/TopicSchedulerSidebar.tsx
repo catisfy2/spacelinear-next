@@ -3,7 +3,6 @@
 import { useMemo, useCallback, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { X } from "lucide-react";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { useStore } from "@/store/useStore";
 import type { Topic, Subject } from "@/lib/types";
 
@@ -34,9 +33,11 @@ function groupBySubject(
 export function TopicSchedulerSidebar({
   open,
   onClose,
+  onCreateTopic,
 }: {
   open: boolean;
   onClose: () => void;
+  onCreateTopic?: () => void;
 }) {
   const { topics, subjects, scheduleTopicForToday } = useStore();
   const overlayRef = useRef<HTMLDivElement>(null);
@@ -96,8 +97,8 @@ export function TopicSchedulerSidebar({
             animate={{ x: 0 }}
             exit={{ x: "100%" }}
             transition={{ type: "spring", damping: 25, stiffness: 300 }}
-            className="fixed right-0 top-0 z-50 flex h-full flex-col border-l border-border bg-sidebar shadow-xl"
-            style={{ width: 300 }}
+            className="fixed right-0 top-0 z-50 flex h-full min-h-0 flex-col border-l border-border bg-sidebar shadow-xl"
+            style={{ width: 320 }}
             role="complementary"
             aria-label="Schedule a topic for today"
           >
@@ -122,7 +123,7 @@ export function TopicSchedulerSidebar({
             </div>
 
             {unscheduledTopics.length > 0 ? (
-              <ScrollArea className="flex-1 px-2 py-2">
+              <div className="flex-1 overflow-y-auto px-2 py-2 min-h-0">
                 {groups.map(({ subject, topics: groupTopics }) => (
                   <div key={subject.id} className="mb-3 last:mb-0">
                     <p className="mb-1 px-2 text-xs font-medium text-muted-foreground">
@@ -132,15 +133,20 @@ export function TopicSchedulerSidebar({
                       {groupTopics.map((topic) => (
                         <div
                           key={topic.id}
-                          className="flex items-center justify-between rounded-lg px-3 py-2 hover:bg-muted transition-colors"
+                          className="flex items-start justify-between rounded-lg px-3 py-2 hover:bg-muted transition-colors"
                         >
-                          <p className="text-sm font-medium text-foreground truncate mr-2">
-                            {topic.title}
-                          </p>
+                          <div className="flex-1 min-w-0 mr-2">
+                            <p className="text-sm font-medium text-foreground truncate">
+                              {topic.title}
+                            </p>
+                            <p className="mt-0.5 text-[11px] text-muted-foreground truncate">
+                              {subject.name}
+                            </p>
+                          </div>
                           <button
                             type="button"
                             onClick={() => handleStudyToday(topic.id)}
-                            className="shrink-0 text-xs font-medium text-primary hover:text-primary/80 transition-colors"
+                            className="shrink-0 mt-0.5 text-xs font-medium text-primary hover:text-primary/80 transition-colors"
                           >
                             Study Today
                           </button>
@@ -149,12 +155,23 @@ export function TopicSchedulerSidebar({
                     </div>
                   </div>
                 ))}
-              </ScrollArea>
+              </div>
             ) : (
-              <div className="flex flex-1 items-center justify-center px-6 text-center text-sm text-muted-foreground">
-                <p>
-                  No topics available. Create a new topic to get started.
-                </p>
+              <div className="flex flex-1 items-center justify-center px-6 min-h-0">
+                <div className="flex flex-col items-center gap-3 text-center">
+                  <p className="text-sm text-muted-foreground">
+                    No topics available
+                  </p>
+                  {onCreateTopic && (
+                    <button
+                      type="button"
+                      onClick={onCreateTopic}
+                      className="text-xs font-medium text-primary hover:text-primary/80 transition-colors"
+                    >
+                      Create Topic
+                    </button>
+                  )}
+                </div>
               </div>
             )}
           </motion.aside>

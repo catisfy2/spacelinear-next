@@ -181,6 +181,10 @@ export function TodayTab() {
       <TopicSchedulerSidebar
         open={showScheduler}
         onClose={() => setShowScheduler(false)}
+        onCreateTopic={() => {
+          setShowScheduler(false);
+          setShowCreateTopic(true);
+        }}
       />
 
       {showCreateTopic && (
