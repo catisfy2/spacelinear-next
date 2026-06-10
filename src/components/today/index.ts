@@ -1,9 +1,7 @@
 export { TodayTab } from "./TodayTab";
 export { HistoryTab } from "./HistoryTab";
 export { InsightsTab } from "./InsightsTab";
-export { StudyTopicsCard } from "./StudyTopicsCard";
-export { AllStudyTopicsCard } from "./AllStudyTopicsCard";
-export { StudyModeCard } from "./StudyModeCard";
-export { QuizOptionCard } from "./QuizOptionCard";
-export { AiPromptInput } from "./AiPromptInput";
-export { SuggestionButtons } from "./SuggestionButtons";
+export { StudyModeButton } from "./StudyModeButton";
+export { QuizButton } from "./QuizButton";
+export { TopicListItem } from "./TopicListItem";
+export { TopicSchedulerSidebar } from "./TopicSchedulerSidebar";

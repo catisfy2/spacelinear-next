@@ -239,9 +239,16 @@ export async function POST(req: NextRequest) {
   let fileName = "";
   if (file) {
     fileName = file.name;
-    const parsed = await parseFile(Buffer.from(await file.arrayBuffer()), fileName);
-    filePageCount = parsed.pageCount;
-    fileContext = `\n\n---\nAttached file: ${fileName}${filePageCount ? ` (${filePageCount} pages)` : ""}\n\n${parsed.text}\n---`;
+    try {
+      const parsed = await parseFile(Buffer.from(await file.arrayBuffer()), fileName);
+      filePageCount = parsed.pageCount;
+      fileContext = `\n\n---\nAttached file: ${fileName}${filePageCount ? ` (${filePageCount} pages)` : ""}\n\n${parsed.text}\n---`;
+    } catch (parseError) {
+      return NextResponse.json(
+        { error: `Could not read file "${fileName}": ${parseError instanceof Error ? parseError.message : "Unknown error"}` },
+        { status: 400 },
+      );
+    }
   }
 
   let chatId = existingChatId;
