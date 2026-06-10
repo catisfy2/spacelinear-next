@@ -1,15 +1,14 @@
 "use client";
 
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useMemo, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { useStore } from "@/store/useStore";
-import { cn } from "@/lib/utils";
-import { StudyTopicsCard } from "./StudyTopicsCard";
-import { AllStudyTopicsCard } from "./AllStudyTopicsCard";
-import { StudyModeCard } from "./StudyModeCard";
-import { QuizOptionCard } from "./QuizOptionCard";
-import { AiPromptInput } from "./AiPromptInput";
-import { SuggestionButtons } from "./SuggestionButtons";
+import { StudyModeButton } from "./StudyModeButton";
+import { QuizButton } from "./QuizButton";
+import { TopicListItem } from "./TopicListItem";
+import { TopicSchedulerSidebar } from "./TopicSchedulerSidebar";
+import { CreateWindow } from "@/components/topics/CreateWindow";
 
 function greetingLabel(): string {
   const h = new Date().getHours();
@@ -18,102 +17,179 @@ function greetingLabel(): string {
   return "Evening";
 }
 
+const DEFAULT_VISIBLE = 4;
+
 export function TodayTab() {
+  const router = useRouter();
   const { user } = useAuth();
   const { topics, subjects } = useStore();
-
   const [expanded, setExpanded] = useState(false);
-  const touchStartY = useRef(0);
-  const cardRef = useRef<HTMLDivElement>(null);
+  const [showScheduler, setShowScheduler] = useState(false);
+  const [showCreateTopic, setShowCreateTopic] = useState(false);
 
-  const handleExpand = useCallback(() => setExpanded(true), []);
+  const dueTopics = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    return topics
+      .filter((t) => {
+        if (t.state === "backlog") return false;
+        const d = new Date(t.nextReviewDate);
+        d.setHours(0, 0, 0, 0);
+        return d < tomorrow;
+      })
+      .sort((a, b) => {
+        const order: Record<string, number> = {
+          new: 0,
+          relearn: 1,
+          hard: 2,
+          medium: 3,
+          easy: 4,
+        };
+        const aOrder = order[a.currentDifficulty ?? "easy"] ?? 5;
+        const bOrder = order[b.currentDifficulty ?? "easy"] ?? 5;
+        if (a.state === "new" && b.state !== "new") return -1;
+        if (a.state !== "new" && b.state === "new") return 1;
+        if (aOrder !== bOrder) return aOrder - bOrder;
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      });
+  }, [topics]);
 
-  const handleCollapse = useCallback(() => setExpanded(false), []);
-
-  const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    touchStartY.current = e.touches[0].clientY;
-  }, []);
-
-  const handleTouchEnd = useCallback(
-    (e: React.TouchEvent) => {
-      if (!expanded) return;
-      const deltaY = e.changedTouches[0].clientY - touchStartY.current;
-      if (deltaY > 80) {
-        setExpanded(false);
-      }
-    },
-    [expanded],
+  const visibleTopics = useMemo(
+    () => (expanded ? dueTopics : dueTopics.slice(0, DEFAULT_VISIBLE)),
+    [dueTopics, expanded],
   );
 
-  useEffect(() => {
-    if (!expanded) return;
-    const handleKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setExpanded(false);
-    };
-    const handleClick = (e: MouseEvent) => {
-      if (cardRef.current && !cardRef.current.contains(e.target as Node)) {
-        setExpanded(false);
-      }
-    };
-    document.addEventListener("keydown", handleKey);
-    document.addEventListener("mousedown", handleClick);
-    return () => {
-      document.removeEventListener("keydown", handleKey);
-      document.removeEventListener("mousedown", handleClick);
-    };
-  }, [expanded]);
+  const hasMore = dueTopics.length > DEFAULT_VISIBLE;
 
   const displayName =
     user?.user_metadata?.full_name || user?.email?.split("@")[0] || "there";
 
+  const handleExpand = useCallback(() => setExpanded(true), []);
+  const handleCollapse = useCallback(() => setExpanded(false), []);
+
   return (
-    <div
-      className="relative flex flex-col"
-      onTouchStart={handleTouchStart}
-      onTouchEnd={handleTouchEnd}
-    >
-      <div
-        className={cn(
-          "flex flex-col gap-[20px] transition-all duration-300 ease-in-out",
-          expanded
-            ? "pointer-events-none absolute inset-x-0 top-0 opacity-0 scale-95"
-            : "opacity-100 scale-100",
-        )}
-        aria-hidden={expanded}
-      >
-        <p className="text-[32px] font-medium text-foreground">
+    <div className="flex flex-1 flex-col items-center justify-center min-h-px">
+      <div className="flex flex-col gap-[28px] items-center">
+        <p className="text-[32px] font-medium text-primary">
           {greetingLabel()}, {displayName}!
         </p>
-        <div className="flex flex-col gap-[10px]">
-          <div className="flex gap-[11px]">
-            <StudyTopicsCard
-              topics={topics}
-              subjects={subjects}
-              onExpand={handleExpand}
+
+        <div className="flex gap-[15px] w-[490px]">
+          <StudyModeButton />
+          <QuizButton />
+        </div>
+
+        <div className="flex flex-col gap-[8px] w-full">
+          {visibleTopics.map((topic) => (
+            <TopicListItem
+              key={topic.id}
+              topic={topic}
+              subject={subjects.find((s) => s.id === topic.subjectId)}
             />
-            <div className="flex w-[255px] shrink-0 flex-col gap-[10px]">
-              <StudyModeCard />
-              <QuizOptionCard />
-            </div>
-          </div>
-          <div className="flex w-full flex-col items-start gap-[8px]">
-            <AiPromptInput />
-            <SuggestionButtons />
+          ))}
+        </div>
+
+        <div className="flex flex-col items-center justify-center w-full">
+          {hasMore && !expanded ? (
+            <button
+              type="button"
+              onClick={handleExpand}
+              className="flex items-center gap-[10px] px-[9px] py-[2px]"
+            >
+              <p className="text-[14px] font-medium text-foreground/70 whitespace-nowrap">
+                Expand
+              </p>
+              <svg
+                width="10"
+                height="5"
+                viewBox="0 0 10 5"
+                fill="none"
+                className="shrink-0 text-foreground/70"
+              >
+                <path
+                  d="M1 1L5 4L9 1"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </button>
+          ) : expanded ? (
+            <button
+              type="button"
+              onClick={handleCollapse}
+              className="flex items-center gap-[10px] px-[9px] py-[2px]"
+            >
+              <p className="text-[14px] font-medium text-foreground/70 whitespace-nowrap">
+                Show Less
+              </p>
+              <svg
+                width="10"
+                height="5"
+                viewBox="0 0 10 5"
+                fill="none"
+                className="shrink-0 rotate-180 text-foreground/70"
+              >
+                <path
+                  d="M1 1L5 4L9 1"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </button>
+          ) : null}
+        </div>
+
+        <div className="flex items-center justify-between w-full">
+          <button
+            type="button"
+            onClick={() => router.push("/mochi")}
+            className="px-[5px] py-[2px]"
+          >
+            <p className="text-[14px] font-medium text-primary/90 whitespace-nowrap">
+              Chat With Mochi
+            </p>
+          </button>
+          <div className="flex gap-[5px]">
+            <button
+              type="button"
+              onClick={() => setShowScheduler(true)}
+              className="px-[5px] py-[2px]"
+            >
+              <p className="text-[14px] font-medium text-primary/90 whitespace-nowrap">
+                + Add Topic
+              </p>
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowCreateTopic(true)}
+              className="px-[5px] py-[2px]"
+            >
+              <p className="text-[14px] font-medium text-primary/90 whitespace-nowrap">
+                + Create Topic
+              </p>
+            </button>
           </div>
         </div>
       </div>
 
-      <div
-        className={cn(
-          "w-full transition-all duration-300 ease-in-out",
-          expanded
-            ? "opacity-100 scale-100"
-            : "pointer-events-none absolute inset-x-0 top-0 opacity-0 scale-95",
-        )}
-        aria-hidden={!expanded}
-      >
-        <AllStudyTopicsCard ref={cardRef} topics={topics} subjects={subjects} />
-      </div>
+      <TopicSchedulerSidebar
+        open={showScheduler}
+        onClose={() => setShowScheduler(false)}
+        onCreateTopic={() => {
+          setShowScheduler(false);
+          setShowCreateTopic(true);
+        }}
+      />
+
+      {showCreateTopic && (
+        <CreateWindow onClose={() => setShowCreateTopic(false)} />
+      )}
     </div>
   );
 }

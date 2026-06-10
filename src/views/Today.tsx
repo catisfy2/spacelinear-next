@@ -25,7 +25,7 @@ function TabBar({
   onTabChange: (tab: Tab) => void;
 }) {
   return (
-    <div className="flex items-center rounded-[16px] bg-white dark:bg-card">
+    <div className="flex items-center rounded-[16px] bg-white dark:bg-card shadow-sm">
       {TABS.map((tab) => (
         <button
           key={tab.key}
@@ -52,6 +52,15 @@ export function TodayPage() {
   const touchStartTime = useRef(0);
 
   const tabIndex = TABS.findIndex((t) => t.key === activeTab);
+
+  // Hide scrollbar on the top-level scroll container for this page
+  useEffect(() => {
+    const el = contentRef.current?.closest<HTMLElement>(".overflow-y-auto");
+    if (!el) return;
+    const prev = el.style.overflow;
+    el.style.overflow = "hidden";
+    return () => { el.style.overflow = prev; };
+  }, []);
 
   const handleTabChange = useCallback(
     (direction: "prev" | "next") => {
@@ -110,7 +119,7 @@ export function TodayPage() {
   return (
     <PageShell
       maxWidth="narrow"
-      className="relative flex min-h-full flex-col pb-12"
+      className="relative flex min-h-full flex-col overflow-hidden pb-12"
     >
       <div className="absolute inset-x-0 top-3 flex justify-center">
         <TabBar activeTab={activeTab} onTabChange={setActiveTab} />
