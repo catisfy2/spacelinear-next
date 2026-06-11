@@ -27,6 +27,7 @@ import {
   IconPerformance,
   IconQuiz,
 } from "./SidebarIcons";
+import { BookOpen } from "lucide-react";
 
 interface SidebarProps {
   onOpenCreateTopic?: () => void;
@@ -52,6 +53,12 @@ export function Sidebar({ onOpenCreateTopic }: SidebarProps) {
       href: "/pulse",
       label: "Performance",
       icon: IconPerformance,
+      exact: true,
+    },
+    {
+      href: "/docs",
+      label: "Docs",
+      icon: BookOpen,
       exact: true,
     },
   ];
